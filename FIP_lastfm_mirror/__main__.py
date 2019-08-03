@@ -35,6 +35,62 @@ def get_soup(browser):
     return BeautifulSoup(browser.page_source, "lxml")
 
 
+def get_FIP_metadata_new(browser):
+    urls_webradios = [
+        "https://www.fip.fr",
+        "https://www.fip.fr/rock/webradio",
+        "https://www.fip.fr/jazz/webradio",
+        "https://www.fip.fr/groove/webradio",
+        "https://www.fip.fr/musiques-du-monde/webradio",
+        "https://www.fip.fr/tout-nouveau-tout-fip/webradio",
+        "https://www.fip.fr/reggae/webradio",
+        "https://www.fip.fr/electro/webradio",
+        "https://www.fip.fr/fip-metal/webradio",
+    ]
+    new_titles = []
+
+    for url in urls_webradios:
+        browser.get(url)
+        # Click on cookie bar if found.
+        try:
+            browser.find_element_by_xpath(
+                "/html/body/div/div/div[2]/div[2]/button[2]/span"
+            ).click()
+            logger.debug("Cookie bar is now hidden.")
+        except Exception as e:
+            logger.debug("Cookie bar not found : %s.", e)
+
+        # Go to the bottom to load all the page.
+        browser.execute_script(
+            "window.scrollTo(0, document.body.scrollHeight);"
+        )
+        time.sleep(2)
+
+        soup = get_soup(browser)
+
+        metadata = {
+            "webradio": soup.find(
+                "h1", {"class": "channel-header-title"}
+            ).text,
+            "title": soup.find("span", {"class": "now-info-title"}).text,
+            "artist": soup.find("span", {"class": "now-info-subtitle"}).text,
+            "album": None,
+            "label": None,
+            "genre": None,
+        }
+        # TODO The metal webradio metadata aren't properly extracted.
+        # if metadata[0] == "L'été Metal":
+        #     breakpoint()
+
+        if (
+            metadata["webradio"] != "Écouter le direct"
+            and metadata["webradio"] in ENABLED_WEBRADIOS
+        ):
+            new_titles.append(metadata)
+    logger.debug("New titles : %s", new_titles)
+    return new_titles
+
+
 def get_FIP_metadata(browser):
     url = "https://www.fip.fr"
     new_titles = []
