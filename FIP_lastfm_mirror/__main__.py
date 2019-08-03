@@ -65,6 +65,8 @@ def get_FIP_metadata(browser):
         ]
         logger.debug(len(metadata))
         logger.debug(metadata)
+        # if metadata == ["L'été Metal"]:
+        #     breakpoint()
 
         if (
             len(metadata) == 2
@@ -130,18 +132,25 @@ def main():
             title["title"],
             title["webradio"],
         )
-        # if key doesn't exist in dict (i.e. first iteration)
-        if not title["webradio"] in last_posted_songs:
-            last_posted_songs[title["webradio"]] = post_title_to_lastfm(title)
-        # if title is already the last title posted
-        if title["title"] != last_posted_songs[title["webradio"]]:
-            last_posted_songs[title["webradio"]] = post_title_to_lastfm(title)
+        if not args.no_posting:
+            # if key doesn't exist in dict (i.e. first iteration)
+            if not title["webradio"] in last_posted_songs:
+                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
+                    title
+                )
+            # if title is already the last title posted
+            if title["title"] != last_posted_songs[title["webradio"]]:
+                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
+                    title
+                )
+            else:
+                logger.debug(
+                    "%s : %s already posted. Skipping.",
+                    title["webradio"],
+                    title["title"],
+                )
         else:
-            logger.debug(
-                "%s : %s already posted. Skipping.",
-                title["webradio"],
-                title["title"],
-            )
+            logger.debug("No-posting mode activated.")
 
     logger.debug("Exporting last_posted_songs.")
     with open(last_posted_songs_file, "w") as f:
@@ -176,7 +185,13 @@ def parse_args():
         dest="no_headless",
         action="store_false",
     )
-    parser.set_defaults(no_headless=True)
+    parser.add_argument(
+        "--no_posting",
+        help="Disable posting to lastfm.",
+        dest="no_posting",
+        action="store_true",
+    )
+    parser.set_defaults(no_headless=True, no_posting=False)
     args = parser.parse_args()
 
     logging.basicConfig(level=args.loglevel, format=format)
