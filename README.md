@@ -2,9 +2,9 @@
 
 Scripts mirroring the FIP webradios on several lastfm accounts.
 
-Since the FIP redesign, the http://www.fipradio.fr/livemeta links doesn't seem to be available anymore.
+Since the FIP redesign, the http://www.fipradio.fr/livemeta links don't seem to be available anymore.
 
-This mirror use webscraping to extract metadata from the fip website. The website is now quite javascript-heavy, hence the use of selenium.
+This mirror use webscraping to extract metadata from the fip website. The new website is quite javascript-heavy, hence the use of selenium.
 
 You can find the mirrors on the following lastfm accounts :
 
@@ -31,9 +31,9 @@ You will also have to rename/copy the config_sample.ini to config.ini and fill i
 
 ## Autostarting
 
-A systemd service and its timer are provided in the systemd-service folder.
+A systemd service and its timer are provided in the systemd-service folder. You will have to change the service file to match your configuration.
 
-The timer allows the script to be run every minute.
+The timer and the service files allows the script to be run every minute.
 
 ```
 cp systemd-service/* ~/.config/systemd/user/

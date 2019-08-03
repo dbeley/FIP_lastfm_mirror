@@ -17,8 +17,7 @@ logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
 
-TEMPS_DEBUT = time.time()
-AUJ = datetime.datetime.now().strftime("%Y-%m-%d")
+BEGIN_TIME = time.time()
 ENABLED_WEBRADIOS = [
     "FIP",
     "Rock",
@@ -41,7 +40,7 @@ def get_FIP_metadata(browser):
     new_titles = []
     browser.get(url)
 
-    # click on cookie bar
+    # Click on cookie bar if found.
     try:
         browser.find_element_by_xpath(
             "/html/body/div/div/div[2]/div[2]/button[2]/span"
@@ -50,22 +49,27 @@ def get_FIP_metadata(browser):
     except Exception as e:
         logger.debug("Cookie bar not found : %s.", e)
 
-    # go to the bottom to load all the page
+    # Go to the bottom to load all the page.
     browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     time.sleep(2)
 
     soup = get_soup(browser)
 
+    # For each live block extract the metadata.
     for live_div in soup.find_all("div", {"class": "live-block"}):
+
+        # TODO add album in metadata
         metadata = [
             x.text
             for x in live_div.find(
                 "div", {"class": "live-block-info"}
             ).find_all("span")
         ]
-        logger.debug(len(metadata))
-        logger.debug(metadata)
-        # if metadata == ["L'été Metal"]:
+
+        logger.debug("%s (%s)", metadata, len(metadata))
+
+        # TODO The metal webradio metadata aren't properly extracted.
+        # if metadata[0] == "L'été Metal":
         #     breakpoint()
 
         if (
@@ -116,13 +120,14 @@ def main():
     options.headless = args.no_headless
     browser = webdriver.Firefox(options=options)
 
-    last_posted_songs_file = "last_posted_songs"
-    if Path(last_posted_songs_file).is_file():
-        with open(last_posted_songs_file) as f:
+    # Loading last posted songs
+    last_posted_songs_filename = "last_posted_songs"
+    if Path(last_posted_songs_filename).is_file():
+        with open(last_posted_songs_filename) as f:
             last_posted_songs = json.load(f)
     else:
         last_posted_songs = {}
-    logger.debug("last_posted_songs file contains : %s", last_posted_songs)
+    logger.debug("last_posted_songs contains : %s", last_posted_songs)
 
     new_titles = get_FIP_metadata(browser)
 
@@ -138,7 +143,7 @@ def main():
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
                 )
-            # if title is already the last title posted
+            # if title is not the last title posted
             if title["title"] != last_posted_songs[title["webradio"]]:
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
@@ -153,14 +158,14 @@ def main():
             logger.debug("No-posting mode activated.")
 
     logger.debug("Exporting last_posted_songs.")
-    with open(last_posted_songs_file, "w") as f:
+    with open(last_posted_songs_filename, "w") as f:
         json.dump(last_posted_songs, f)
 
     logger.debug("Closing selenium browser.")
     browser.close()
     browser.quit()
 
-    logger.info("Runtime : %.2f seconds." % (time.time() - TEMPS_DEBUT))
+    logger.info("Runtime : %.2f seconds." % (time.time() - BEGIN_TIME))
 
 
 def parse_args():
