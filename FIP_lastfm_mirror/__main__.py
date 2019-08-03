@@ -170,14 +170,11 @@ def parse_args():
     )
     parser.add_argument(
         "--debug",
-        help="Display debugging information",
+        help="Display debugging information.",
         action="store_const",
         dest="loglevel",
         const=logging.DEBUG,
         default=logging.INFO,
-    )
-    parser.add_argument(
-        "positional_argument", nargs="?", type=str, help="Positional argument"
     )
     parser.add_argument(
         "--no_headless",

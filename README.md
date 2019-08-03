@@ -1,12 +1,12 @@
 # FIP_lastfm_mirror
 
-Mirror the FIP webradios on lastfm.
+Scripts mirroring the FIP webradios on several lastfm accounts.
 
 Since the FIP redesign, the http://www.fipradio.fr/livemeta links doesn't seem to be available anymore.
 
-This mirror use webscraping to extract metadata for the webradios. The website is now very javascript-heavy, hence the use of selenium.
+This mirror use webscraping to extract metadata from the fip website. The website is now quite javascript-heavy, hence the use of selenium.
 
-You can find the mirrors on the following accounts :
+You can find the mirrors on the following lastfm accounts :
 
 - [FIPdirect](https://last.fm/user/FIPdirect) for the main channel
 - [FIProck](https://last.fm/user/FIProck) for the rock webradio
@@ -31,10 +31,31 @@ You will also have to rename/copy the config_sample.ini to config.ini and fill i
 
 ## Autostarting
 
-The script is autostarted with a systemd timers restarting every minutes.
+A systemd service and its timer are provided in the systemd-service folder.
+
+The timer allows the script to be run every minute.
 
 ```
 cp systemd-service/* ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now FIP_lastfm_mirror.timer
+```
+
+## Help
+
+```
+FIP_lastfm_mirror -h
+```
+
+```
+usage: FIP_lastfm_mirror [-h] [--debug] [--no_headless] [--no_posting]
+                         [positional_argument]
+
+Mirror the FIP webradios to lastfm.
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --debug              Display debugging information.
+  --no_headless        Disable headless mode for the selenium browser.
+  --no_posting         Disable posting to lastfm.
 ```
