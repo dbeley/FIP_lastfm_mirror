@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the FIP_lastfm_mirror script every minute.
+
+[Timer]
+OnCalendar=*:0/1
+Persistent=True
+
+[Install]
+WantedBy=timers.target

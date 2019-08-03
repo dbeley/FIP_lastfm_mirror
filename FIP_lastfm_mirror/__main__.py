@@ -1,12 +1,14 @@
 """
 Mirror the FIP webradios to lastfm.
 """
+import json
 import logging
 import time
 import argparse
 import datetime
 import configparser
 import pylast
+from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
@@ -17,6 +19,17 @@ logging.getLogger("selenium").setLevel(logging.WARNING)
 
 TEMPS_DEBUT = time.time()
 AUJ = datetime.datetime.now().strftime("%Y-%m-%d")
+ENABLED_WEBRADIOS = [
+    "FIP",
+    "Rock",
+    "Jazz",
+    "Groove",
+    "Monde",
+    "Nouveautés",
+    "Reggae",
+    "Electro",
+    "L'été Metal",
+]
 
 
 def get_soup(browser):
@@ -53,7 +66,11 @@ def get_FIP_metadata(browser):
         logger.debug(len(metadata))
         logger.debug(metadata)
 
-        if len(metadata) == 2 and metadata[0] != "Écouter le direct":
+        if (
+            len(metadata) == 2
+            and metadata[0] != "Écouter le direct"
+            and metadata[0] in ENABLED_WEBRADIOS
+        ):
             new_titles.append({"webradio": metadata[0], "title": metadata[1]})
     logger.debug("New titles : %s", new_titles)
     return new_titles
@@ -61,12 +78,12 @@ def get_FIP_metadata(browser):
 
 def get_lastfm_network(webradio_name):
     logger.debug("Getting lastfm network for %s.", webradio_name)
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
     config.read("config.ini")
     API_KEY = config[webradio_name]["API_KEY"]
     API_SECRET = config[webradio_name]["API_SECRET"]
     username = config[webradio_name]["username"]
-    password = pylast.md5(config[webradio_name]["password"])
+    password = pylast.md5(str(config[webradio_name]["password"]))
 
     network = pylast.LastFMNetwork(
         api_key=API_KEY,
@@ -93,41 +110,46 @@ def post_title_to_lastfm(title):
 
 def main():
     args = parse_args()
-    # Can't be a systemd service file, restarting the selenium browser every minute would not be optimal.
     options = Options()
     options.headless = args.no_headless
     browser = webdriver.Firefox(options=options)
 
-    last_posted_songs = {}
-    while True:
-        new_titles = get_FIP_metadata(browser)
+    last_posted_songs_file = "last_posted_songs"
+    if Path(last_posted_songs_file).is_file():
+        with open(last_posted_songs_file) as f:
+            last_posted_songs = json.load(f)
+    else:
+        last_posted_songs = {}
+    logger.debug("last_posted_songs file contains : %s", last_posted_songs)
 
-        for title in new_titles:
+    new_titles = get_FIP_metadata(browser)
+
+    for title in new_titles:
+        logger.debug(
+            "Testing if %s for the %s webradio has been posted.",
+            title["title"],
+            title["webradio"],
+        )
+        # if key doesn't exist in dict (i.e. first iteration)
+        if not title["webradio"] in last_posted_songs:
+            last_posted_songs[title["webradio"]] = post_title_to_lastfm(title)
+        # if title is already the last title posted
+        if title["title"] != last_posted_songs[title["webradio"]]:
+            last_posted_songs[title["webradio"]] = post_title_to_lastfm(title)
+        else:
             logger.debug(
-                "Testing if %s for the %s webradio has been posted.",
-                title["title"],
+                "%s : %s already posted. Skipping.",
                 title["webradio"],
+                title["title"],
             )
-            # if key doesn't exist in dict (i.e. first iteration)
-            if not title["webradio"] in last_posted_songs:
-                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
-                    title
-                )
-            # if title is already the last title posted
-            if title["title"] != last_posted_songs[title["webradio"]]:
-                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
-                    title
-                )
-            else:
-                logger.debug(
-                    "%s : %s already posted. Skipping.",
-                    title["webradio"],
-                    title["title"],
-                )
 
-        logger.debug("Waiting for 60 seconds.")
-        browser.get("https://start.duckduckgo.com")
-        time.sleep(60)
+    logger.debug("Exporting last_posted_songs.")
+    with open(last_posted_songs_file, "w") as f:
+        json.dump(last_posted_songs, f)
+
+    logger.debug("Closing selenium browser.")
+    browser.close()
+    browser.quit()
 
     logger.info("Runtime : %.2f seconds." % (time.time() - TEMPS_DEBUT))
 

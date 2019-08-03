@@ -3,3 +3,5 @@
 config.ini
 *.log
 tags
+last_posted_songs
+__pycache__/
