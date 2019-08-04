@@ -152,7 +152,7 @@ def post_title_to_lastfm(title):
             timestamp=unix_timestamp,
         )
 
-    return title
+    return f"{title['artist']} - {title['title']}"
 
 
 def main():
@@ -180,12 +180,15 @@ def main():
         )
         if not args.no_posting:
             # if key doesn't exist in dict (i.e. first iteration)
-            if title not in last_posted_songs:
+            if not title["webradio"] in last_posted_songs:
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
                 )
             # if title is not the last title posted
-            if title != last_posted_songs[title["webradio"]]:
+            if (
+                f"{title['artist']} - {title['title']}"
+                != last_posted_songs[title["webradio"]]
+            ):
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
                 )
