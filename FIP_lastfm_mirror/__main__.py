@@ -27,7 +27,7 @@ ENABLED_WEBRADIOS = [
     "Nouveautés",
     "Reggae",
     "Electro",
-    "L'été Metal",
+    "Metal",
 ]
 
 
