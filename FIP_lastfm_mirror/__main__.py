@@ -35,7 +35,7 @@ def get_soup(browser):
     return BeautifulSoup(browser.page_source, "lxml")
 
 
-def get_FIP_metadata_new(browser):
+def get_FIP_metadata(browser):
     urls_webradios = [
         "https://www.fip.fr",
         "https://www.fip.fr/rock/webradio",
@@ -61,79 +61,53 @@ def get_FIP_metadata_new(browser):
             logger.debug("Cookie bar not found : %s.", e)
 
         # Go to the bottom to load all the page.
-        browser.execute_script(
-            "window.scrollTo(0, document.body.scrollHeight);"
-        )
-        time.sleep(2)
+        # browser.execute_script(
+        #     "window.scrollTo(0, document.body.scrollHeight);"
+        # )
+        logger.debug("Waiting for 1 second.")
+        time.sleep(1)
 
         soup = get_soup(browser)
 
-        metadata = {
-            "webradio": soup.find(
-                "h1", {"class": "channel-header-title"}
-            ).text,
-            "title": soup.find("span", {"class": "now-info-title"}).text,
-            "artist": soup.find("span", {"class": "now-info-subtitle"}).text,
-            "album": None,
-            "label": None,
-            "genre": None,
-        }
-        # TODO The metal webradio metadata aren't properly extracted.
-        # if metadata[0] == "L'été Metal":
-        #     breakpoint()
+        # breakpoint()
+
+        details_label = [
+            x.text
+            for x in soup.find_all("span", {"class": "now-info-details-label"})
+        ]
+        logger.debug(details_label)
+        details_value = [
+            x.text
+            for x in soup.find_all("span", {"class": "now-info-details-value"})
+        ]
+        logger.debug(details_value)
+
+        metadata = {}
+
+        for index, label in enumerate(details_label):
+            metadata[label.lower()] = details_value[index]
+
+        # Taking the last word
+        # "En direct sur FIP" becomes FIP
+        # "En direct sur FIP Rock" becomes Rock
+        metadata["webradio"] = soup.find(
+            "h1", {"class": "channel-header-title"}
+        ).text.split()[-1]
+
+        metadata["title"] = soup.find("span", {"class": "now-info-title"}).text
+
+        metadata["artist"] = soup.find(
+            "span", {"class": "now-info-subtitle"}
+        ).text
+
+        logger.debug(metadata)
 
         if (
-            metadata["webradio"] != "Écouter le direct"
+            # at least webradio, artist, title in dict
+            {"webradio", "artist", "title"} <= set(metadata)
             and metadata["webradio"] in ENABLED_WEBRADIOS
         ):
             new_titles.append(metadata)
-    logger.debug("New titles : %s", new_titles)
-    return new_titles
-
-
-def get_FIP_metadata(browser):
-    url = "https://www.fip.fr"
-    new_titles = []
-    browser.get(url)
-
-    # Click on cookie bar if found.
-    try:
-        browser.find_element_by_xpath(
-            "/html/body/div/div/div[2]/div[2]/button[2]/span"
-        ).click()
-        logger.debug("Cookie bar is now hidden.")
-    except Exception as e:
-        logger.debug("Cookie bar not found : %s.", e)
-
-    # Go to the bottom to load all the page.
-    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(2)
-
-    soup = get_soup(browser)
-
-    # For each live block extract the metadata.
-    for live_div in soup.find_all("div", {"class": "live-block"}):
-
-        # TODO add album in metadata
-        metadata = [
-            x.text
-            for x in live_div.find(
-                "div", {"class": "live-block-info"}
-            ).find_all("span")
-        ]
-
-        logger.debug("%s (%s)", metadata, len(metadata))
-
-        # TODO The metal webradio metadata aren't properly extracted.
-        # if metadata[0] == "L'été Metal":
-        #     breakpoint()
-
-        if (
-            len(metadata) == 2
-            and metadata[0] != "Écouter le direct"
-            and metadata[0] in ENABLED_WEBRADIOS
-        ):
-            new_titles.append({"webradio": metadata[0], "title": metadata[1]})
     logger.debug("New titles : %s", new_titles)
     return new_titles
 
@@ -162,12 +136,23 @@ def post_title_to_lastfm(title):
     )
     network = get_lastfm_network(title["webradio"])
 
-    artist, track_name = title["title"].split(" - ", 1)
     unix_timestamp = int(time.mktime(datetime.datetime.now().timetuple()))
 
-    network.scrobble(artist=artist, title=track_name, timestamp=unix_timestamp)
+    if "album" in title:
+        network.scrobble(
+            artist=title["artist"],
+            title=title["title"],
+            timestamp=unix_timestamp,
+            album=title["album"],
+        )
+    else:
+        network.scrobble(
+            artist=title["artist"],
+            title=title["title"],
+            timestamp=unix_timestamp,
+        )
 
-    return title["title"]
+    return title
 
 
 def main():
@@ -195,12 +180,12 @@ def main():
         )
         if not args.no_posting:
             # if key doesn't exist in dict (i.e. first iteration)
-            if not title["webradio"] in last_posted_songs:
+            if title not in last_posted_songs:
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
                 )
             # if title is not the last title posted
-            if title["title"] != last_posted_songs[title["webradio"]]:
+            if title != last_posted_songs[title["webradio"]]:
                 last_posted_songs[title["webradio"]] = post_title_to_lastfm(
                     title
                 )
