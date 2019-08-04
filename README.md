@@ -8,15 +8,15 @@ This mirror use webscraping to extract metadata from the fip website. The new we
 
 You can find the mirrors on the following lastfm accounts :
 
-- [FIPdirect](https://last.fm/user/FIPdirect) for the main channel
-- [FIProck](https://last.fm/user/FIProck) for the rock webradio
-- [FIPreggae](https://last.fm/user/FIPreggae) for the reggae webradio
-- [FIPjazz](https://last.fm/user/FIPjazz) for the jazz webradio
-- [FIPgroove](https://last.fm/user/FIPgroove) for the groove webradio
-- [FIPmonde](https://last.fm/user/FIPmonde) for the monde webradio
-- [FIPnouveautes](https://last.fm/user/FIPnouveautes) for the nouveautés webradio
-- [FIPelectro](https://last.fm/user/FIPelectro) for the electro webradio
-- [FIPmetal](https://last.fm/user/FIPmetal) for the l'été metal webradio
+- [FIPdirect](https://last.fm/user/FIPdirect) for the main channel.
+- [FIProck](https://last.fm/user/FIProck) for the rock webradio.
+- [FIPreggae](https://last.fm/user/FIPreggae) for the reggae webradio.
+- [FIPjazz](https://last.fm/user/FIPjazz) for the jazz webradio.
+- [FIPgroove](https://last.fm/user/FIPgroove) for the groove webradio.
+- [FIPmonde](https://last.fm/user/FIPmonde) for the musiques du monde webradio.
+- [FIPnouveautes](https://last.fm/user/FIPnouveautes) for the nouveautés webradio.
+- [FIPelectro](https://last.fm/user/FIPelectro) for the electro webradio.
+- [FIPmetal](https://last.fm/user/FIPmetal) for the l'été metal webradio.
 
 
 ## Installation
