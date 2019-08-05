@@ -1,10 +1,10 @@
 [Unit]
-Description=FIP_lastfm_mirror.service
+Description=FIP_mirror.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=%h/Documents/FIP_lastfm_mirror
-ExecStart=%h/Documents/FIP_lastfm_mirror/.venv/bin/FIP_lastfm_mirror
+WorkingDirectory=%h/Documents/FIP_mirror
+ExecStart=%h/Documents/FIP_mirror/.venv/bin/FIP_mirror
 
 [Install]
 WantedBy=multi-user.target

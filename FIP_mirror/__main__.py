@@ -211,7 +211,10 @@ def get_lastfm_cover(network, title):
         title["artist"], title["album"]
     ).get_cover_image()
 
-    picture = requests.get(picture_url)
+    if picture_url:
+        picture = requests.get(picture_url)
+    else:
+        picture = None
     return picture
 
 
@@ -226,14 +229,16 @@ def post_tweet(title):
     # 2) album present, cover not found on lastfm
     # 3) no album
     if "album" in title:
-        cover = get_lastfm_cover(network, title)
         tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
-        if cover and cover.status_code == 200:
-            with open("cover.png", "wb") as f:
-                f.write(cover.content)
-            tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
-            tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
-        else:
+        try:
+            cover = get_lastfm_cover(network, title)
+            if cover and cover.status_code == 200:
+                with open("cover.png", "wb") as f:
+                    f.write(cover.content)
+                tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
+                tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+        except Exception as e:
+            logger.error("Error : %s.", e)
             twitter_api.update_status(status=tweet_text)
             mastodon_api.status_post(tweet_text)
     else:

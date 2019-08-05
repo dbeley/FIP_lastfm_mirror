@@ -9,7 +9,7 @@ setuptools.setup(
     version=FIP_mirror.__version__,
     author="dbeley",
     author_email="dbeley@protonmail.com",
-    description="Miror the FIP webradios on serveral services.",
+    description="Mirror the FIP webradios on several services.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dbeley/FIP_mirror",
