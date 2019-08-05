@@ -37,6 +37,59 @@ ENABLED_WEBRADIOS = [
 ]
 
 
+def lastfmconnect(webradio_name):
+    logger.debug("Getting lastfm network for %s.", webradio_name)
+    API_KEY = config[f"lastfm-{webradio_name}"]["API_KEY"]
+    API_SECRET = config[f"lastfm-{webradio_name}"]["API_SECRET"]
+    username = config[f"lastfm-{webradio_name}"]["username"]
+    password = pylast.md5(str(config[f"lastfm-{webradio_name}"]["password"]))
+
+    network = pylast.LastFMNetwork(
+        api_key=API_KEY,
+        api_secret=API_SECRET,
+        username=username,
+        password_hash=password,
+    )
+    return network
+
+
+def twitterconnect():
+    consumer_key = config["twitter"]["consumer_key"]
+    secret_key = config["twitter"]["secret_key"]
+    access_token = config["twitter"]["access_token"]
+    access_token_secret = config["twitter"]["access_token_secret"]
+
+    auth = tweepy.OAuthHandler(consumer_key, secret_key)
+    auth.set_access_token(access_token, access_token_secret)
+    return tweepy.API(auth)
+
+
+def mastodonconnect():
+    if not Path("mastodon_clientcred.secret").is_file():
+        Mastodon.create_app(
+            "mastodon_bot_lastfm_cg",
+            api_base_url=config["mastodon"]["api_base_url"],
+            to_file="mastodon_clientcred.secret",
+        )
+
+    if not Path("mastodon_usercred.secret").is_file():
+        mastodon = Mastodon(
+            client_id="mastodon_clientcred.secret",
+            api_base_url=config["mastodon"]["api_base_url"],
+        )
+        mastodon.log_in(
+            config["mastodon"]["login_email"],
+            config["mastodon"]["password"],
+            to_file="mastodon_usercred.secret",
+        )
+
+    mastodon = Mastodon(
+        access_token="mastodon_usercred.secret",
+        api_base_url=config["mastodon"]["api_base_url"],
+    )
+    return mastodon
+
+
 def get_soup(browser):
     return BeautifulSoup(browser.page_source, "lxml")
 
@@ -123,27 +176,11 @@ def get_FIP_metadata(browser):
     return new_titles
 
 
-def get_lastfm_network(webradio_name):
-    logger.debug("Getting lastfm network for %s.", webradio_name)
-    API_KEY = config[f"lastfm-{webradio_name}"]["API_KEY"]
-    API_SECRET = config[f"lastfm-{webradio_name}"]["API_SECRET"]
-    username = config[f"lastfm-{webradio_name}"]["username"]
-    password = pylast.md5(str(config[f"lastfm-{webradio_name}"]["password"]))
-
-    network = pylast.LastFMNetwork(
-        api_key=API_KEY,
-        api_secret=API_SECRET,
-        username=username,
-        password_hash=password,
-    )
-    return network
-
-
 def post_title_to_lastfm(title):
     logger.debug(
         "Posting title %s to webradio %s.", title["title"], title["webradio"]
     )
-    network = get_lastfm_network(title["webradio"])
+    network = lastfmconnect(title["webradio"])
 
     unix_timestamp = int(time.mktime(datetime.datetime.now().timetuple()))
 
@@ -162,17 +199,6 @@ def post_title_to_lastfm(title):
         )
 
 
-def twitterconnect():
-    consumer_key = config["twitter"]["consumer_key"]
-    secret_key = config["twitter"]["secret_key"]
-    access_token = config["twitter"]["access_token"]
-    access_token_secret = config["twitter"]["access_token_secret"]
-
-    auth = tweepy.OAuthHandler(consumer_key, secret_key)
-    auth.set_access_token(access_token, access_token_secret)
-    return tweepy.API(auth)
-
-
 def tweet_image(api, filename, title, social_media):
     if social_media == "twitter":
         pic = api.media_upload(str(filename))
@@ -180,32 +206,6 @@ def tweet_image(api, filename, title, social_media):
     elif social_media == "mastodon":
         id_media = api.media_post(str(filename), "image/png")
         api.status_post(title, media_ids=[id_media])
-
-
-def mastodonconnect():
-    if not Path("mastodon_clientcred.secret").is_file():
-        Mastodon.create_app(
-            "mastodon_bot_lastfm_cg",
-            api_base_url=config["mastodon"]["api_base_url"],
-            to_file="mastodon_clientcred.secret",
-        )
-
-    if not Path("mastodon_usercred.secret").is_file():
-        mastodon = Mastodon(
-            client_id="mastodon_clientcred.secret",
-            api_base_url=config["mastodon"]["api_base_url"],
-        )
-        mastodon.log_in(
-            config["mastodon"]["login_email"],
-            config["mastodon"]["password"],
-            to_file="mastodon_usercred.secret",
-        )
-
-    mastodon = Mastodon(
-        access_token="mastodon_usercred.secret",
-        api_base_url=config["mastodon"]["api_base_url"],
-    )
-    return mastodon
 
 
 def get_fip_cover(title):
@@ -237,6 +237,7 @@ def post_tweet(title):
     logger.debug("Posting tweet.")
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
+    lastfm_api = lastfmconnect(title["webradio"])
 
     # Four cases :
     # 1) album present, cover found on fip
@@ -255,8 +256,8 @@ def post_tweet(title):
             else:
                 twitter_api.update_status(status=tweet_text)
                 mastodon_api.status_post(tweet_text)
-        if "cover_url" in title and "placeholder" in title["cover_url"]:
-            cover = get_lastfm_cover(title)
+        elif "cover_url" in title and "placeholder" in title["cover_url"]:
+            cover = get_lastfm_cover(lastfm_api, title)
             if cover and cover.status_code == 200:
                 with open("cover.png", "wb") as f:
                     f.write(cover.content)

@@ -28,10 +28,16 @@ The following mastodon accounts :
 
 ## Installation
 
-Installation in a virtualenv (recommended) :
+Installation in a virtualenv with pipenv (recommended) :
 
 ```
 pipenv install '-e .'
+```
+
+Classic installation :
+
+```
+python setup.py install
 ```
 
 You will also have to rename/copy the config_sample.ini to config.ini and fill in your credentials.
