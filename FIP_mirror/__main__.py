@@ -216,15 +216,33 @@ def get_fip_cover(title):
         return None
 
 
+def get_lastfm_cover(network, title):
+    logger.debug(f"Searching image for {title}.")
+    try:
+        picture_url = network.get_album(
+            title["artist"], title["album"]
+        ).get_cover_image()
+    except Exception as e:
+        logger.error("Error : %s.", e)
+        picture_url = None
+
+    if picture_url:
+        picture = requests.get(picture_url)
+    else:
+        picture = None
+    return picture
+
+
 def post_tweet(title):
     logger.debug("Posting tweet.")
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
 
-    # Three cases :
-    # 1) album present, cover found on lastfm
-    # 2) album present, cover not found on lastfm
-    # 3) no album
+    # Four cases :
+    # 1) album present, cover found on fip
+    # 2) album present, cover found on lastfm
+    # 3) album present, cover not found on lastfm nor on fip
+    # 4) no album
     if "album" in title:
         tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
         if "cover_url" in title and "placeholder" not in title["cover_url"]:
@@ -234,6 +252,16 @@ def post_tweet(title):
                     f.write(cover.content)
                 tweet_image(twitter_api, "cover.jpg", tweet_text, "twitter")
                 tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
+            else:
+                twitter_api.update_status(status=tweet_text)
+                mastodon_api.status_post(tweet_text)
+        if "cover_url" in title and "placeholder" in title["cover_url"]:
+            cover = get_lastfm_cover(title)
+            if cover and cover.status_code == 200:
+                with open("cover.png", "wb") as f:
+                    f.write(cover.content)
+                tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
+                tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
             else:
                 twitter_api.update_status(status=tweet_text)
                 mastodon_api.status_post(tweet_text)
