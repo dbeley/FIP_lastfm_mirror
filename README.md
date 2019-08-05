@@ -1,6 +1,6 @@
-# FIP_lastfm_mirror
+# FIP_mirror
 
-Scripts mirroring the FIP webradios on several lastfm accounts.
+Scripts mirroring the FIP webradios on lastfm, twitter and mastodon.
 
 Since the FIP redesign, the http://www.fipradio.fr/livemeta links don't seem to be available anymore.
 
@@ -18,10 +18,13 @@ You can find the mirrors on the following lastfm accounts :
 - [FIPelectro](https://last.fm/user/FIPelectro) for the electro webradio.
 - [FIPmetal](https://last.fm/user/FIPmetal) for the l'été metal webradio.
 
+The following twitter accounts :
+
+The following mastodon accounts :
 
 ## Installation
 
-Installation in a virtualenv (recommended)
+Installation in a virtualenv (recommended) :
 
 ```
 pipenv install '-e .'
@@ -38,20 +41,20 @@ The timer and the service files allows the script to be run every minute.
 ```
 cp systemd-service/* ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now FIP_lastfm_mirror.timer
+systemctl --user enable --now FIP_mirror.timer
 ```
 
 ## Help
 
 ```
-FIP_lastfm_mirror -h
+FIP_mirror -h
 ```
 
 ```
-usage: FIP_lastfm_mirror [-h] [--debug] [--no_headless] [--no_posting]
+usage: FIP_mirror [-h] [--debug] [--no_headless] [--no_posting]
                          [positional_argument]
 
-Mirror the FIP webradios to lastfm.
+Mirror the FIP webradios to several services.
 
 optional arguments:
   -h, --help           show this help message and exit

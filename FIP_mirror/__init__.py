@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Mirror the FIP webradios to lastfm.
+Mirror the FIP webradios to several services.
 """
 
 __version__ = "1.0"
 
-name = "FIP_lastfm_mirror"
+name = "FIP_mirror"

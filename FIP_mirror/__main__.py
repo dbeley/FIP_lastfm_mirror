@@ -1,6 +1,7 @@
 """
-Mirror the FIP webradios to lastfm.
+Mirror the FIP webradios to several services.
 """
+import requests
 import json
 import logging
 import time
@@ -8,6 +9,8 @@ import argparse
 import datetime
 import configparser
 import pylast
+import tweepy
+from mastodon import Mastodon
 from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -16,18 +19,21 @@ from selenium.webdriver.firefox.options import Options
 logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+config = configparser.RawConfigParser()
+config.read("config.ini")
 
 BEGIN_TIME = time.time()
 ENABLED_WEBRADIOS = [
     "FIP",
-    "Rock",
-    "Jazz",
-    "Groove",
-    "Monde",
-    "Nouveautés",
-    "Reggae",
-    "Electro",
-    "Metal",
+    # "Rock",
+    # "Jazz",
+    # "Groove",
+    # "Monde",
+    # "Nouveautés",
+    # "Reggae",
+    # "Electro",
+    # "Metal",
 ]
 
 
@@ -114,8 +120,6 @@ def get_FIP_metadata(browser):
 
 def get_lastfm_network(webradio_name):
     logger.debug("Getting lastfm network for %s.", webradio_name)
-    config = configparser.RawConfigParser()
-    config.read("config.ini")
     API_KEY = config[webradio_name]["API_KEY"]
     API_SECRET = config[webradio_name]["API_SECRET"]
     username = config[webradio_name]["username"]
@@ -152,7 +156,92 @@ def post_title_to_lastfm(title):
             timestamp=unix_timestamp,
         )
 
-    return f"{title['artist']} - {title['title']}"
+    # return f"{title['artist']} - {title['title']}"
+
+
+def twitterconnect():
+    consumer_key = config["twitter"]["consumer_key"]
+    secret_key = config["twitter"]["secret_key"]
+    access_token = config["twitter"]["access_token"]
+    access_token_secret = config["twitter"]["access_token_secret"]
+
+    auth = tweepy.OAuthHandler(consumer_key, secret_key)
+    auth.set_access_token(access_token, access_token_secret)
+    return tweepy.API(auth)
+
+
+def tweet_image(api, filename, title, social_media):
+    if social_media == "twitter":
+        pic = api.media_upload(str(filename))
+        api.update_status(status=title, media_ids=[pic.media_id_string])
+    elif social_media == "mastodon":
+        id_media = api.media_post(str(filename), "image/png")
+        api.status_post(title, media_ids=[id_media])
+
+
+def mastodonconnect():
+    if not Path("mastodon_clientcred.secret").is_file():
+        Mastodon.create_app(
+            "mastodon_bot_lastfm_cg",
+            api_base_url=config["mastodon"]["api_base_url"],
+            to_file="mastodon_clientcred.secret",
+        )
+
+    if not Path("mastodon_usercred.secret").is_file():
+        mastodon = Mastodon(
+            client_id="mastodon_clientcred.secret",
+            api_base_url=config["mastodon"]["api_base_url"],
+        )
+        mastodon.log_in(
+            config["mastodon"]["login_email"],
+            config["mastodon"]["password"],
+            to_file="mastodon_usercred.secret",
+        )
+
+    mastodon = Mastodon(
+        access_token="mastodon_usercred.secret",
+        api_base_url=config["mastodon"]["api_base_url"],
+    )
+    return mastodon
+
+
+def get_lastfm_cover(network, title):
+    logger.debug(f"Searching image for {title}.")
+    picture_url = network.get_album(
+        title["artist"], title["album"]
+    ).get_cover_image()
+
+    picture = requests.get(picture_url)
+    return picture
+
+
+def post_tweet(title):
+    logger.debug("Posting tweet.")
+    twitter_api = twitterconnect()
+    mastodon_api = mastodonconnect()
+    network = get_lastfm_network(title["webradio"])
+
+    # three cases
+    # 1) album present, cover found on lastfm
+    # 2) album present, cover not found on lastfm
+    # 3) no album
+    if "album" in title:
+        cover = get_lastfm_cover(network, title)
+        tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
+        if cover and cover.status_code == 200:
+            with open("cover.png", "wb") as f:
+                f.write(cover.content)
+            tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
+            tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+        else:
+            twitter_api.update_status(status=tweet_text)
+            mastodon_api.status_post(tweet_text)
+    else:
+        tweet_text = (
+            f"#fipradio #nowplaying {title['artist']} - {title['title']}"
+        )
+        twitter_api.update_status(status=tweet_text)
+        mastodon_api.status_post(tweet_text)
 
 
 def main():
@@ -181,17 +270,29 @@ def main():
         if not args.no_posting:
             # if key doesn't exist in dict (i.e. first iteration)
             if not title["webradio"] in last_posted_songs:
-                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
-                    title
-                )
+                # post to lastfm (all webradios)
+                # post_title_to_lastfm(title)
+                # post to twitter/mastodon (main webradio)
+                if title["webradio"] == "FIP":
+                    post_tweet(title)
+                # add title to posted titles
+                last_posted_songs[
+                    title["webradio"]
+                ] = f"{title['artist']} - {title['title']}"
             # if title is not the last title posted
             if (
                 f"{title['artist']} - {title['title']}"
                 != last_posted_songs[title["webradio"]]
             ):
-                last_posted_songs[title["webradio"]] = post_title_to_lastfm(
-                    title
-                )
+                # post to lastfm (all webradios)
+                # post_title_to_lastfm(title)
+                # post to twitter/mastodon (main webradio)
+                if title["webradio"] == "FIP":
+                    post_tweet(title)
+                # add title to posted titles
+                last_posted_songs[
+                    title["webradio"]
+                ] = f"{title['artist']} - {title['title']}"
             else:
                 logger.debug(
                     "%s : %s already posted. Skipping.",
@@ -215,7 +316,7 @@ def main():
 def parse_args():
     format = "%(levelname)s :: %(message)s"
     parser = argparse.ArgumentParser(
-        description="Mirror the FIP webradios to lastfm."
+        description="Mirror the FIP webradios to several services."
     )
     parser.add_argument(
         "--debug",
@@ -233,7 +334,7 @@ def parse_args():
     )
     parser.add_argument(
         "--no_posting",
-        help="Disable posting to lastfm.",
+        help="Disable posting.",
         dest="no_posting",
         action="store_true",
     )

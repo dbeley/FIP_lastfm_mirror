@@ -1,28 +1,32 @@
 import setuptools
-import FIP_lastfm_mirror
+import FIP_mirror
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="FIP_lastfm_mirror",
-    version=FIP_lastfm_mirror.__version__,
+    name="FIP_mirror",
+    version=FIP_mirror.__version__,
     author="dbeley",
     author_email="dbeley@protonmail.com",
-    description="Miror the FIP webradios on lastfm.",
+    description="Miror the FIP webradios on serveral services.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/dbeley/FIP_lastfm_mirror",
+    url="https://github.com/dbeley/FIP_mirror",
     packages=setuptools.find_packages(),
     include_package_data=True,
-    entry_points={
-        "console_scripts": [
-            "FIP_lastfm_mirror=FIP_lastfm_mirror.__main__:main"
-        ]
-    },
+    entry_points={"console_scripts": ["FIP_mirror=FIP_mirror.__main__:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: POSIX :: Linux",
     ],
-    install_requires=["pylast", "requests", "bs4", "lxml", "selenium"],
+    install_requires=[
+        "pylast",
+        "requests",
+        "bs4",
+        "lxml",
+        "selenium",
+        "tweepy",
+        "Mastodon.py",
+    ],
 )
