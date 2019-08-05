@@ -207,9 +207,13 @@ def mastodonconnect():
 
 def get_lastfm_cover(network, title):
     logger.debug(f"Searching image for {title}.")
-    picture_url = network.get_album(
-        title["artist"], title["album"]
-    ).get_cover_image()
+    try:
+        picture_url = network.get_album(
+            title["artist"], title["album"]
+        ).get_cover_image()
+    except Exception as e:
+        logger.error("Error : %s.", e)
+        picture_url = None
 
     if picture_url:
         picture = requests.get(picture_url)
@@ -230,15 +234,13 @@ def post_tweet(title):
     # 3) no album
     if "album" in title:
         tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
-        try:
-            cover = get_lastfm_cover(network, title)
-            if cover and cover.status_code == 200:
-                with open("cover.png", "wb") as f:
-                    f.write(cover.content)
-                tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
-                tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
-        except Exception as e:
-            logger.error("Error : %s.", e)
+        cover = get_lastfm_cover(network, title)
+        if cover and cover.status_code == 200:
+            with open("cover.png", "wb") as f:
+                f.write(cover.content)
+            tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
+            tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+        else:
             twitter_api.update_status(status=tweet_text)
             mastodon_api.status_post(tweet_text)
     else:
