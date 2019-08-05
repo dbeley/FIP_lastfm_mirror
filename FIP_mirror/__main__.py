@@ -120,10 +120,10 @@ def get_FIP_metadata(browser):
 
 def get_lastfm_network(webradio_name):
     logger.debug("Getting lastfm network for %s.", webradio_name)
-    API_KEY = config[webradio_name]["API_KEY"]
-    API_SECRET = config[webradio_name]["API_SECRET"]
-    username = config[webradio_name]["username"]
-    password = pylast.md5(str(config[webradio_name]["password"]))
+    API_KEY = config[f"lastfm-{webradio_name}"]["API_KEY"]
+    API_SECRET = config[f"lastfm-{webradio_name}"]["API_SECRET"]
+    username = config[f"lastfm-{webradio_name}"]["username"]
+    password = pylast.md5(str(config[f"lastfm-{webradio_name}"]["password"]))
 
     network = pylast.LastFMNetwork(
         api_key=API_KEY,
@@ -271,7 +271,7 @@ def main():
             # if key doesn't exist in dict (i.e. first iteration)
             if not title["webradio"] in last_posted_songs:
                 # post to lastfm (all webradios)
-                # post_title_to_lastfm(title)
+                post_title_to_lastfm(title)
                 # post to twitter/mastodon (main webradio)
                 if title["webradio"] == "FIP":
                     post_tweet(title)
@@ -285,7 +285,7 @@ def main():
                 != last_posted_songs[title["webradio"]]
             ):
                 # post to lastfm (all webradios)
-                # post_title_to_lastfm(title)
+                post_title_to_lastfm(title)
                 # post to twitter/mastodon (main webradio)
                 if title["webradio"] == "FIP":
                     post_tweet(title)
