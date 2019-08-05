@@ -231,7 +231,7 @@ def post_tweet(title):
     # 3) no album
     if "album" in title:
         tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
-        if "cover_url" in title:
+        if "cover_url" in title and "placeholder" not in title["cover_url"]:
             cover = get_fip_cover(title)
             if cover and cover.status_code == 200:
                 with open("cover.jpg", "wb") as f:
