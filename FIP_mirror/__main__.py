@@ -26,14 +26,14 @@ config.read("config.ini")
 BEGIN_TIME = time.time()
 ENABLED_WEBRADIOS = [
     "FIP",
-    # "Rock",
-    # "Jazz",
-    # "Groove",
-    # "Monde",
-    # "Nouveautés",
-    # "Reggae",
-    # "Electro",
-    # "Metal",
+    "Rock",
+    "Jazz",
+    "Groove",
+    "Monde",
+    "Nouveautés",
+    "Reggae",
+    "Electro",
+    "Metal",
 ]
 
 
@@ -105,6 +105,13 @@ def get_FIP_metadata(browser):
         metadata["artist"] = soup.find(
             "span", {"class": "now-info-subtitle"}
         ).text
+
+        metadata["cover_url"] = soup.find(
+            "div", {"class": "now-cover playing-now-cover"}
+        ).find("img")["src"]
+
+        if not metadata["cover_url"].startswith("http"):
+            metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
 
         logger.debug(metadata)
 
@@ -205,28 +212,18 @@ def mastodonconnect():
     return mastodon
 
 
-def get_lastfm_cover(network, title):
-    logger.debug(f"Searching image for {title}.")
+def get_fip_cover(title):
     try:
-        picture_url = network.get_album(
-            title["artist"], title["album"]
-        ).get_cover_image()
+        return requests.get(title["cover_url"])
     except Exception as e:
         logger.error("Error : %s.", e)
-        picture_url = None
-
-    if picture_url:
-        picture = requests.get(picture_url)
-    else:
-        picture = None
-    return picture
+        return None
 
 
 def post_tweet(title):
     logger.debug("Posting tweet.")
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
-    network = get_lastfm_network(title["webradio"])
 
     # three cases
     # 1) album present, cover found on lastfm
@@ -234,12 +231,16 @@ def post_tweet(title):
     # 3) no album
     if "album" in title:
         tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
-        cover = get_lastfm_cover(network, title)
-        if cover and cover.status_code == 200:
-            with open("cover.png", "wb") as f:
-                f.write(cover.content)
-            tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
-            tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+        if "cover_url" in title:
+            cover = get_fip_cover(title)
+            if cover and cover.status_code == 200:
+                with open("cover.jpg", "wb") as f:
+                    f.write(cover.content)
+                tweet_image(twitter_api, "cover.jpg", tweet_text, "twitter")
+                tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
+            else:
+                twitter_api.update_status(status=tweet_text)
+                mastodon_api.status_post(tweet_text)
         else:
             twitter_api.update_status(status=tweet_text)
             mastodon_api.status_post(tweet_text)

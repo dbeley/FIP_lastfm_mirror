@@ -6,4 +6,5 @@ tags
 last_posted_songs
 __pycache__/
 cover.png
+cover.jpg
 *.secret
