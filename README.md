@@ -20,7 +20,11 @@ You can find the mirrors on the following lastfm accounts :
 
 The following twitter accounts :
 
+- [@fipdirect](https://twitter.com/fipdirect) for the main channel.
+
 The following mastodon accounts :
+
+- [@fipdirect@mamot.fr](https://mamot.fr/@fipdirect) for the main channel.
 
 ## Installation
 

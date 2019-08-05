@@ -75,8 +75,6 @@ def get_FIP_metadata(browser):
 
         soup = get_soup(browser)
 
-        # breakpoint()
-
         details_label = [
             x.text
             for x in soup.find_all("span", {"class": "now-info-details-label"})
@@ -116,7 +114,7 @@ def get_FIP_metadata(browser):
         logger.debug(metadata)
 
         if (
-            # at least webradio, artist, title in dict
+            # At least webradio, artist, title in dict.
             {"webradio", "artist", "title"} <= set(metadata)
             and metadata["webradio"] in ENABLED_WEBRADIOS
         ):
@@ -162,8 +160,6 @@ def post_title_to_lastfm(title):
             title=title["title"],
             timestamp=unix_timestamp,
         )
-
-    # return f"{title['artist']} - {title['title']}"
 
 
 def twitterconnect():
@@ -225,7 +221,7 @@ def post_tweet(title):
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
 
-    # three cases
+    # Three cases :
     # 1) album present, cover found on lastfm
     # 2) album present, cover not found on lastfm
     # 3) no album
