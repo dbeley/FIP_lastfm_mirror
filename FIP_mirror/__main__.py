@@ -20,6 +20,7 @@ logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("tweepy").setLevel(logging.WARNING)
 config = configparser.RawConfigParser()
 config.read("config.ini")
 
@@ -128,21 +129,7 @@ def get_FIP_metadata(browser):
 
         soup = get_soup(browser)
 
-        details_label = [
-            x.text
-            for x in soup.find_all("span", {"class": "now-info-details-label"})
-        ]
-        logger.debug(details_label)
-        details_value = [
-            x.text
-            for x in soup.find_all("span", {"class": "now-info-details-value"})
-        ]
-        logger.debug(details_value)
-
         metadata = {}
-
-        for index, label in enumerate(details_label):
-            metadata[label.lower()] = details_value[index]
 
         # Taking the last word
         # "En direct sur FIP" becomes FIP
@@ -157,6 +144,20 @@ def get_FIP_metadata(browser):
             "span", {"class": "now-info-subtitle"}
         ).text
 
+        details_label = [
+            x.text
+            for x in soup.find_all("span", {"class": "now-info-details-label"})
+        ]
+        logger.debug(details_label)
+        details_value = [
+            x.text.strip()
+            for x in soup.find_all("span", {"class": "now-info-details-value"})
+        ]
+        logger.debug(details_value)
+
+        for index, label in enumerate(details_label):
+            metadata[label.lower()] = details_value[index]
+
         metadata["cover_url"] = soup.find(
             "div", {"class": "now-cover playing-now-cover"}
         ).find("img")["src"]
@@ -170,6 +171,8 @@ def get_FIP_metadata(browser):
             # At least webradio, artist, title in dict.
             {"webradio", "artist", "title"} <= set(metadata)
             and metadata["webradio"] in ENABLED_WEBRADIOS
+            and metadata["title"] != ""
+            and metadata["artist"] != ""
         ):
             new_titles.append(metadata)
     logger.debug("New titles : %s", new_titles)
@@ -177,8 +180,13 @@ def get_FIP_metadata(browser):
 
 
 def post_title_to_lastfm(title):
-    logger.debug(
-        "Posting title %s to webradio %s.", title["title"], title["webradio"]
+    logger.info(
+        "Lastfm : Posting %s - %s (%s) (%s) to webradio %s.",
+        title["artist"],
+        title["title"],
+        title["album"],
+        title["genre"],
+        title["webradio"],
     )
     network = lastfmconnect(title["webradio"])
 
@@ -223,7 +231,7 @@ def get_lastfm_cover(network, title):
             title["artist"], title["album"]
         ).get_cover_image()
     except Exception as e:
-        logger.error("Error : %s.", e)
+        logger.error("Error in lastfm cover extraction : %s.", e)
         picture_url = None
 
     if picture_url:
@@ -234,7 +242,13 @@ def get_lastfm_cover(network, title):
 
 
 def post_tweet(title):
-    logger.debug("Posting tweet.")
+    logger.info(
+        "Posting tweet for %s - %s (%s) (%s).",
+        title["artist"],
+        title["title"],
+        title["album"],
+        title["genre"],
+    )
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
     lastfm_api = lastfmconnect(title["webradio"])
@@ -332,12 +346,13 @@ def main():
                     title["webradio"],
                     title["title"],
                 )
+
+            # Exporting each time
+            logger.debug("Exporting last_posted_songs.")
+            with open(last_posted_songs_filename, "w") as f:
+                json.dump(last_posted_songs, f)
         else:
             logger.debug("No-posting mode activated.")
-
-    logger.debug("Exporting last_posted_songs.")
-    with open(last_posted_songs_filename, "w") as f:
-        json.dump(last_posted_songs, f)
 
     logger.debug("Closing selenium browser.")
     browser.close()
