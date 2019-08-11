@@ -181,11 +181,10 @@ def get_FIP_metadata(browser):
 
 def post_title_to_lastfm(title):
     logger.info(
-        "Lastfm : Posting %s - %s (%s) (%s) to webradio %s.",
+        "Lastfm : Posting %s - %s (%s) to webradio %s.",
         title["artist"],
         title["title"],
         title["album"],
-        title["genre"],
         title["webradio"],
     )
     network = lastfmconnect(title["webradio"])
@@ -243,11 +242,10 @@ def get_lastfm_cover(network, title):
 
 def post_tweet(title):
     logger.info(
-        "Posting tweet for %s - %s (%s) (%s).",
+        "Twitter : Posting %s - %s (%s).",
         title["artist"],
         title["title"],
         title["album"],
-        title["genre"],
     )
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
@@ -309,50 +307,53 @@ def main():
     new_titles = get_FIP_metadata(browser)
 
     for title in new_titles:
-        logger.debug(
-            "Testing if %s for the %s webradio has been posted.",
-            title["title"],
-            title["webradio"],
-        )
-        if not args.no_posting:
-            # if key doesn't exist in dict (i.e. first iteration)
-            if not title["webradio"] in last_posted_songs:
-                # post to lastfm (all webradios)
-                post_title_to_lastfm(title)
-                # post to twitter/mastodon (main webradio)
-                if title["webradio"] == "FIP":
-                    post_tweet(title)
-                # add title to posted titles
-                last_posted_songs[
-                    title["webradio"]
-                ] = f"{title['artist']} - {title['title']}"
-            # if title is not the last title posted
-            if (
-                f"{title['artist']} - {title['title']}"
-                != last_posted_songs[title["webradio"]]
-            ):
-                # post to lastfm (all webradios)
-                post_title_to_lastfm(title)
-                # post to twitter/mastodon (main webradio)
-                if title["webradio"] == "FIP":
-                    post_tweet(title)
-                # add title to posted titles
-                last_posted_songs[
-                    title["webradio"]
-                ] = f"{title['artist']} - {title['title']}"
-            else:
-                logger.debug(
-                    "%s : %s already posted. Skipping.",
-                    title["webradio"],
-                    title["title"],
-                )
+        try:
+            logger.debug(
+                "Testing if %s for the %s webradio has been posted.",
+                title["title"],
+                title["webradio"],
+            )
+            if not args.no_posting:
+                # if key doesn't exist in dict (i.e. first iteration)
+                if not title["webradio"] in last_posted_songs:
+                    # post to lastfm (all webradios)
+                    post_title_to_lastfm(title)
+                    # post to twitter/mastodon (main webradio)
+                    if title["webradio"] == "FIP":
+                        post_tweet(title)
+                    # add title to posted titles
+                    last_posted_songs[
+                        title["webradio"]
+                    ] = f"{title['artist']} - {title['title']}"
+                # if title is not the last title posted
+                if (
+                    f"{title['artist']} - {title['title']}"
+                    != last_posted_songs[title["webradio"]]
+                ):
+                    # post to lastfm (all webradios)
+                    post_title_to_lastfm(title)
+                    # post to twitter/mastodon (main webradio)
+                    if title["webradio"] == "FIP":
+                        post_tweet(title)
+                    # add title to posted titles
+                    last_posted_songs[
+                        title["webradio"]
+                    ] = f"{title['artist']} - {title['title']}"
+                else:
+                    logger.debug(
+                        "%s : %s already posted. Skipping.",
+                        title["webradio"],
+                        title["title"],
+                    )
 
-            # Exporting each time
-            logger.debug("Exporting last_posted_songs.")
-            with open(last_posted_songs_filename, "w") as f:
-                json.dump(last_posted_songs, f)
-        else:
-            logger.debug("No-posting mode activated.")
+                # Exporting each time
+                logger.debug("Exporting last_posted_songs.")
+                with open(last_posted_songs_filename, "w") as f:
+                    json.dump(last_posted_songs, f)
+            else:
+                logger.debug("No-posting mode activated.")
+        except Exception as e:
+            logger.error("Error for title %s : %s.", title, e)
 
     logger.debug("Closing selenium browser.")
     browser.close()
