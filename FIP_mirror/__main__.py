@@ -269,6 +269,12 @@ def post_tweet(title):
 
     # Search youtube video
     youtube_url = get_youtube_url(title)
+    logger.info(
+        "Youtube url for %s - %s : %s.",
+        title["artist"],
+        title["title"],
+        youtube_url,
+    )
 
     # Four cases :
     # 1) album present, cover found on fip
@@ -276,17 +282,15 @@ def post_tweet(title):
     # 3) album present, cover not found on lastfm nor on fip
     # 4) no album
     # also year
+    additional_infos = ""
     if "album" in title:
         if "year" in title:
-            if youtube_url:
-                additional_infos = (
-                    f" ({title['album']} - {title['year']}) {youtube_url}"
-                )
-            additional_infos = f" ({title['album']} - {title['year']})"
+            additional_infos += f" ({title['album']} - {title['year']})"
         else:
-            additional_infos = f" ({title['album']})"
-    else:
-        additional_infos = ""
+            additional_infos += f" ({title['album']})"
+    if youtube_url:
+        additional_infos += f" {youtube_url}"
+
     tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
     if "album" in title:
         logger.info(
@@ -343,11 +347,12 @@ def get_youtube_url(title):
     }
     with requests.Session() as session:
         session.headers.update = header
-        logger.info("Extracting youtube url for %s.", title)
+        logger.debug("Extracting youtube url for %s.", title)
         name = f"{title['artist']} - {title['title']}"
         url = "https://www.youtube.com/results?search_query=" + name.replace(
             " ", "+"
-        ).replace("&", "%26")
+        ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
+        logger.info("Youtube URL search : %s", url)
         soup = BeautifulSoup(session.get(url).content, "lxml")
     # Test if youtube is rate-limited
     if soup.find("form", {"id": "captcha-form"}):
@@ -364,7 +369,9 @@ def get_youtube_url(title):
         # delete user channels url
         href = [x for x in href if "channel" not in x and "user" not in x]
         logger.debug("href : %s.", href)
-        url = "https://www.youtube.com" + href[0]
+        url = f"https://youtu.be/{href[0].split('?v=', 1)[-1]}"
+        # logger.info(url)
+        # url = "https://www.youtube.com" + href[0]
     except Exception as e:
         logger.error(e)
         return None
