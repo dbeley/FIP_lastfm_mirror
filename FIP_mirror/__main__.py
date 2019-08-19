@@ -21,6 +21,8 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("tweepy").setLevel(logging.WARNING)
+logging.getLogger("chardet.charsetprober").setLevel(logging.WARNING)
+
 config = configparser.RawConfigParser()
 config.read("config.ini")
 
@@ -265,6 +267,9 @@ def post_tweet(title):
     mastodon_api = mastodonconnect()
     lastfm_api = lastfmconnect(title["webradio"])
 
+    # Search youtube video
+    youtube_url = get_youtube_url(title)
+
     # Four cases :
     # 1) album present, cover found on fip
     # 2) album present, cover found on lastfm
@@ -273,6 +278,10 @@ def post_tweet(title):
     # also year
     if "album" in title:
         if "year" in title:
+            if youtube_url:
+                additional_infos = (
+                    f" ({title['album']} - {title['year']}) {youtube_url}"
+                )
             additional_infos = f" ({title['album']} - {title['year']})"
         else:
             additional_infos = f" ({title['album']})"
@@ -327,6 +336,41 @@ def post_tweet(title):
         )
 
 
+def get_youtube_url(title):
+    # Extracting youtube urls
+    header = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
+    }
+    with requests.Session() as session:
+        session.headers.update = header
+        logger.info("Extracting youtube url for %s.", title)
+        name = f"{title['artist']} - {title['title']}"
+        url = "https://www.youtube.com/results?search_query=" + name.replace(
+            " ", "+"
+        ).replace("&", "%26")
+        soup = BeautifulSoup(session.get(url).content, "lxml")
+    # Test if youtube is rate-limited
+    if soup.find("form", {"id": "captcha-form"}):
+        logger.error("Rate-limit detected on Youtube. Exiting.")
+        return None
+    try:
+        titles = soup.find_all(
+            "a",
+            {
+                "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
+            },
+        )
+        href = [x["href"] for x in titles if x["href"]]
+        # delete user channels url
+        href = [x for x in href if "channel" not in x and "user" not in x]
+        logger.debug("href : %s.", href)
+        url = "https://www.youtube.com" + href[0]
+    except Exception as e:
+        logger.error(e)
+        return None
+    return url
+
+
 def main():
     args = parse_args()
     options = Options()
@@ -347,7 +391,8 @@ def main():
     for title in new_titles:
         try:
             logger.debug(
-                "Testing if %s for the %s webradio has been posted.",
+                "Testing if %s - %s for the %s webradio has been posted.",
+                title["artist"],
                 title["title"],
                 title["webradio"],
             )
