@@ -140,9 +140,19 @@ def get_FIP_metadata(browser):
 
         metadata["title"] = soup.find("span", {"class": "now-info-title"}).text
 
-        metadata["artist"] = soup.find(
-            "span", {"class": "now-info-subtitle"}
-        ).text
+        subtitle = soup.find("span", {"class": "now-info-subtitle"}).text
+        try:
+            potential_year = (
+                subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
+            )
+            if potential_year.isdigit():
+                metadata["year"] = potential_year
+                metadata["artist"] = subtitle.rsplit(" ", 1)[0]
+            else:
+                metadata["artist"] = subtitle
+        except Exception as e:
+            logger.error(e)
+            metadata["artist"] = subtitle
 
         details_label = [
             x.text
@@ -175,23 +185,27 @@ def get_FIP_metadata(browser):
             and metadata["artist"] != ""
         ):
             new_titles.append(metadata)
+        else:
+            logger.info(
+                "Metadata %s didn't fullfill the requirements.", metadata
+            )
     logger.debug("New titles : %s", new_titles)
     return new_titles
 
 
 def post_title_to_lastfm(title):
-    logger.info(
-        "Lastfm : Posting %s - %s (%s) to webradio %s.",
-        title["artist"],
-        title["title"],
-        title["album"],
-        title["webradio"],
-    )
     network = lastfmconnect(title["webradio"])
 
     unix_timestamp = int(time.mktime(datetime.datetime.now().timetuple()))
 
     if "album" in title:
+        logger.info(
+            "Lastfm : Posting %s - %s (%s) to webradio %s.",
+            title["artist"],
+            title["title"],
+            title["album"],
+            title["webradio"],
+        )
         network.scrobble(
             artist=title["artist"],
             title=title["title"],
@@ -199,6 +213,12 @@ def post_title_to_lastfm(title):
             album=title["album"],
         )
     else:
+        logger.info(
+            "Lastfm : Posting %s - %s to webradio %s.",
+            title["artist"],
+            title["title"],
+            title["webradio"],
+        )
         network.scrobble(
             artist=title["artist"],
             title=title["title"],
@@ -241,12 +261,6 @@ def get_lastfm_cover(network, title):
 
 
 def post_tweet(title):
-    logger.info(
-        "Twitter : Posting %s - %s (%s).",
-        title["artist"],
-        title["title"],
-        title["album"],
-    )
     twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
     lastfm_api = lastfmconnect(title["webradio"])
@@ -256,25 +270,46 @@ def post_tweet(title):
     # 2) album present, cover found on lastfm
     # 3) album present, cover not found on lastfm nor on fip
     # 4) no album
+    # also year
     if "album" in title:
-        tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']} ({title['album']})"
+        if "year" in title:
+            additional_infos = f" ({title['album']} - {title['year']})"
+        else:
+            additional_infos = f" ({title['album']})"
+    else:
+        additional_infos = ""
+    tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
+    if "album" in title:
+        logger.info(
+            "Twitter : Posting %s - %s (%s). Tweet text : %s.",
+            title["artist"],
+            title["title"],
+            title["album"],
+            tweet_text,
+        )
+        # Cover is not the placeholder on fip
         if "cover_url" in title and "placeholder" not in title["cover_url"]:
             cover = get_fip_cover(title)
+            # Cover successfully downloaded
             if cover and cover.status_code == 200:
                 with open("cover.jpg", "wb") as f:
                     f.write(cover.content)
                 tweet_image(twitter_api, "cover.jpg", tweet_text, "twitter")
                 tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
+            # Problem with the cover download
             else:
                 twitter_api.update_status(status=tweet_text)
                 mastodon_api.status_post(tweet_text)
+        # Cover is the placeholder, searching on lastfm
         elif "cover_url" in title and "placeholder" in title["cover_url"]:
             cover = get_lastfm_cover(lastfm_api, title)
+            # Cover found on lastfm and successfully downloaded
             if cover and cover.status_code == 200:
                 with open("cover.png", "wb") as f:
                     f.write(cover.content)
                 tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
                 tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+            # Cover not found on lastfm
             else:
                 twitter_api.update_status(status=tweet_text)
                 mastodon_api.status_post(tweet_text)
@@ -282,11 +317,14 @@ def post_tweet(title):
             twitter_api.update_status(status=tweet_text)
             mastodon_api.status_post(tweet_text)
     else:
-        tweet_text = (
-            f"#fipradio #nowplaying {title['artist']} - {title['title']}"
-        )
         twitter_api.update_status(status=tweet_text)
         mastodon_api.status_post(tweet_text)
+        logger.info(
+            "Twitter : Posting %s - %s. Tweet text : %s.",
+            title["artist"],
+            title["title"],
+            tweet_text,
+        )
 
 
 def main():
