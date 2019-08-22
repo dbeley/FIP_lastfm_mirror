@@ -368,10 +368,11 @@ def get_youtube_url(title):
         href = [x["href"] for x in titles if x["href"]]
         # delete user channels url
         href = [x for x in href if "channel" not in x and "user" not in x]
+        id_video = href[0].split("?v=", 1)[-1]
+        if "&list" in id_video:
+            id_video = id_video.split("&list")[0]
         logger.debug("href : %s.", href)
-        url = f"https://youtu.be/{href[0].split('?v=', 1)[-1]}"
-        # logger.info(url)
-        # url = "https://www.youtube.com" + href[0]
+        url = f"https://youtu.be/{id_video}"
     except Exception as e:
         logger.error(e)
         return None
