@@ -23,7 +23,7 @@ setuptools.setup(
     install_requires=[
         "pylast",
         "requests",
-        "bs4",
+        "beautifulsoup4",
         "lxml",
         "selenium",
         "tweepy",
