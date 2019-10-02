@@ -407,29 +407,29 @@ def main():
             if not args.no_posting:
                 # if key doesn't exist in dict (i.e. first iteration)
                 if not title["webradio"] in last_posted_songs:
+                    # add title to posted titles
+                    last_posted_songs[
+                        title["webradio"]
+                    ] = f"{title['artist']} - {title['title']}"
                     # post to lastfm (all webradios)
                     post_title_to_lastfm(title)
                     # post to twitter/mastodon (main webradio)
                     if title["webradio"] == "FIP":
                         post_tweet(title)
-                    # add title to posted titles
-                    last_posted_songs[
-                        title["webradio"]
-                    ] = f"{title['artist']} - {title['title']}"
                 # if title is not the last title posted
                 if (
                     f"{title['artist']} - {title['title']}"
                     != last_posted_songs[title["webradio"]]
                 ):
+                    # add title to posted titles
+                    last_posted_songs[
+                        title["webradio"]
+                    ] = f"{title['artist']} - {title['title']}"
                     # post to lastfm (all webradios)
                     post_title_to_lastfm(title)
                     # post to twitter/mastodon (main webradio)
                     if title["webradio"] == "FIP":
                         post_tweet(title)
-                    # add title to posted titles
-                    last_posted_songs[
-                        title["webradio"]
-                    ] = f"{title['artist']} - {title['title']}"
                 else:
                     logger.debug(
                         "%s : %s already posted. Skipping.",
