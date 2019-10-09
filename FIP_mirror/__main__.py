@@ -307,8 +307,18 @@ def post_tweet(title):
             if cover and cover.status_code == 200:
                 with open("cover.jpg", "wb") as f:
                     f.write(cover.content)
-                tweet_image(twitter_api, "cover.jpg", tweet_text, "twitter")
-                tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
+                try:
+                    tweet_image(
+                        twitter_api, "cover.jpg", tweet_text, "twitter"
+                    )
+                except Exception as e:
+                    logger.error("Error posting tweet to Twitter : %s.", e)
+                try:
+                    tweet_image(
+                        mastodon_api, "cover.jpg", tweet_text, "mastodon"
+                    )
+                except Exception as e:
+                    logger.error("Error posting tweet to Mastodon : %s.", e)
             # Problem with the cover download
             else:
                 twitter_api.update_status(status=tweet_text)
@@ -320,18 +330,46 @@ def post_tweet(title):
             if cover and cover.status_code == 200:
                 with open("cover.png", "wb") as f:
                     f.write(cover.content)
-                tweet_image(twitter_api, "cover.png", tweet_text, "twitter")
-                tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
+                try:
+                    tweet_image(
+                        twitter_api, "cover.png", tweet_text, "twitter"
+                    )
+                except Exception as e:
+                    logger.error("Error posting tweet to Twitter : %s.", e)
+                try:
+                    tweet_image(
+                        mastodon_api, "cover.png", tweet_text, "mastodon"
+                    )
+                except Exception as e:
+                    logger.error("Error posting tweet to Mastodon : %s.", e)
             # Cover not found on lastfm
             else:
-                twitter_api.update_status(status=tweet_text)
-                mastodon_api.status_post(tweet_text)
+                try:
+                    twitter_api.update_status(status=tweet_text)
+                except Exception as e:
+                    logger.error("Error posting tweet to Twitter : %s.", e)
+                try:
+                    mastodon_api.status_post(tweet_text)
+                except Exception as e:
+                    logger.error("Error posting tweet to Mastodon : %s.", e)
         else:
-            twitter_api.update_status(status=tweet_text)
-            mastodon_api.status_post(tweet_text)
+            try:
+                twitter_api.update_status(status=tweet_text)
+            except Exception as e:
+                logger.error("Error posting tweet to Twitter : %s.", e)
+            try:
+                mastodon_api.status_post(tweet_text)
+            except Exception as e:
+                logger.error("Error posting tweet to Mastodon : %s.", e)
     else:
-        twitter_api.update_status(status=tweet_text)
-        mastodon_api.status_post(tweet_text)
+        try:
+            twitter_api.update_status(status=tweet_text)
+        except Exception as e:
+            logger.error("Error posting tweet to Twitter : %s.", e)
+        try:
+            mastodon_api.status_post(tweet_text)
+        except Exception as e:
+            logger.error("Error posting tweet to Mastodon : %s.", e)
         logger.info(
             "Twitter : Posting %s - %s. Tweet text : %s.",
             title["artist"],
