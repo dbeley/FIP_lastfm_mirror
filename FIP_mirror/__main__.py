@@ -162,23 +162,28 @@ def get_FIP_metadata():
             logger.error(e)
             metadata["artist"] = subtitle
 
+        details = soup.find("div", {"class": "now-info-details"})
         details_label = [
             x.text
-            for x in soup.find_all("span", {"class": "now-info-details-label"})
+            for x in details.find_all(
+                "span", {"class": "now-info-details-label"}
+            )
         ]
         logger.debug(details_label)
         details_value = [
             x.text.strip()
-            for x in soup.find_all("span", {"class": "now-info-details-value"})
+            for x in details.find_all(
+                "span", {"class": "now-info-details-value"}
+            )
         ]
         logger.debug(details_value)
 
-        # for index, label in enumerate(details_label):
-        #     metadata[label.lower()] = details_value[index]
-        # album
-        metadata[details_label[0].lower()] = details_value[0]
-        # label
-        metadata[details_label[1].lower()] = details_value[1]
+        for index, label in enumerate(details_label):
+            metadata[label.lower()] = details_value[index]
+        # # album
+        # metadata[details_label[0].lower()] = details_value[0]
+        # # label
+        # metadata[details_label[1].lower()] = details_value[1]
 
         metadata["cover_url"] = soup.find(
             "div", {"class": "now-cover playing-now-cover"}
