@@ -8,3 +8,4 @@ __pycache__/
 cover.png
 cover.jpg
 *.secret
+*.csv

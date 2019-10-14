@@ -38,6 +38,41 @@ ENABLED_WEBRADIOS = [
     "Electro",
     "Metal",
 ]
+URLS_WEBRADIOS = [
+    "https://www.fip.fr/titres-diffuses",
+    "https://www.fip.fr/titres-diffuses?station=rock",
+    "https://www.fip.fr/titres-diffuses?station=jazz",
+    "https://www.fip.fr/titres-diffuses?station=groove",
+    "https://www.fip.fr/titres-diffuses?station=musiques-du-monde",
+    "https://www.fip.fr/titres-diffuses?station=tout-nouveau-tout-fip",
+    "https://www.fip.fr/titres-diffuses?station=reggae",
+    "https://www.fip.fr/titres-diffuses?station=electro",
+    # "https://www.fip.fr/titres-diffuses?station=metal",
+    # "https://www.fip.fr",
+    # "https://www.fip.fr/rock/webradio",
+    # "https://www.fip.fr/jazz/webradio",
+    # "https://www.fip.fr/groove/webradio",
+    # "https://www.fip.fr/musiques-du-monde/webradio",
+    # "https://www.fip.fr/tout-nouveau-tout-fip/webradio",
+    # "https://www.fip.fr/reggae/webradio",
+    # "https://www.fip.fr/electro/webradio",
+    # "https://www.fip.fr/fip-metal/webradio",
+]
+TIMELINE_FILE = "fip-timeline.csv"
+
+
+def get_entry_from_dict(title, entry):
+    if entry in title:
+        return str(title[entry])
+    else:
+        return ""
+
+
+def export_to_timeline(title):
+    with open(TIMELINE_FILE, "a") as f:
+        f.write(
+            f"FIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
+        )
 
 
 def lastfmconnect(webradio_name):
@@ -98,20 +133,9 @@ def get_soup(browser):
 
 
 def get_FIP_metadata(browser):
-    urls_webradios = [
-        "https://www.fip.fr",
-        "https://www.fip.fr/rock/webradio",
-        "https://www.fip.fr/jazz/webradio",
-        "https://www.fip.fr/groove/webradio",
-        "https://www.fip.fr/musiques-du-monde/webradio",
-        "https://www.fip.fr/tout-nouveau-tout-fip/webradio",
-        "https://www.fip.fr/reggae/webradio",
-        "https://www.fip.fr/electro/webradio",
-        "https://www.fip.fr/fip-metal/webradio",
-    ]
     new_titles = []
 
-    for url in urls_webradios:
+    for url in URLS_WEBRADIOS:
         browser.get(url)
         # Click on cookie bar if found.
         try:
@@ -136,8 +160,9 @@ def get_FIP_metadata(browser):
         # Taking the last word
         # "En direct sur FIP" becomes FIP
         # "En direct sur FIP Rock" becomes Rock
+        # "h1", {"class": "channel-header-title"}
         metadata["webradio"] = soup.find(
-            "h1", {"class": "channel-header-title"}
+            "h1", {"class": "tracklist-content-title"}
         ).text.split()[-1]
 
         metadata["title"] = soup.find("span", {"class": "now-info-title"}).text
@@ -445,12 +470,17 @@ def main():
             if not args.no_posting:
                 # if key doesn't exist in dict (i.e. first iteration)
                 if not title["webradio"] in last_posted_songs:
+
                     # add title to posted titles
                     last_posted_songs[
                         title["webradio"]
                     ] = f"{title['artist']} - {title['title']}"
+
+                    export_to_timeline(title)
+
                     # post to lastfm (all webradios)
                     post_title_to_lastfm(title)
+
                     # post to twitter/mastodon (main webradio)
                     if title["webradio"] == "FIP":
                         post_tweet(title)
@@ -459,12 +489,17 @@ def main():
                     f"{title['artist']} - {title['title']}"
                     != last_posted_songs[title["webradio"]]
                 ):
+
                     # add title to posted titles
                     last_posted_songs[
                         title["webradio"]
                     ] = f"{title['artist']} - {title['title']}"
+
+                    export_to_timeline(title)
+
                     # post to lastfm (all webradios)
                     post_title_to_lastfm(title)
+
                     # post to twitter/mastodon (main webradio)
                     if title["webradio"] == "FIP":
                         post_tweet(title)
