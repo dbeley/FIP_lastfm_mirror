@@ -25,7 +25,6 @@ setuptools.setup(
         "requests",
         "beautifulsoup4",
         "lxml",
-        "youtube-dl",
         "tweepy",
         "Mastodon.py",
     ],

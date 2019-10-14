@@ -13,7 +13,6 @@ import tweepy
 from mastodon import Mastodon
 from pathlib import Path
 from bs4 import BeautifulSoup
-from youtube_dl import YoutubeDL
 
 logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -70,7 +69,7 @@ def get_entry_from_dict(title, entry):
 def export_to_timeline(title):
     with open(TIMELINE_FILE, "a") as f:
         f.write(
-            f"FIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
+            f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S};FIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
         )
 
 
@@ -396,56 +395,43 @@ class MyLogger(object):  # pragma: no cover
         print(msg)
 
 
-def get_youtube_url(search_term):
+def get_youtube_url(title):
+    # Extracting youtube urls
+    header = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
+    }
+    with requests.Session() as session:
+        session.headers.update = header
+        logger.debug("Extracting youtube url for %s.", title)
+        name = f"{title['artist']} - {title['title']}"
+        url = "https://www.youtube.com/results?search_query=" + name.replace(
+            " ", "+"
+        ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
+        logger.info("Youtube URL search : %s", url)
+        soup = BeautifulSoup(session.get(url).content, "lxml")
+    # Test if youtube is rate-limited
+    if soup.find("form", {"id": "captcha-form"}):
+        logger.error("Rate-limit detected on Youtube. Exiting.")
+        return None
     try:
-        ydl_opts = {"logger": MyLogger()}
-        with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(
-                f"ytsearch1:{search_term}", download=False
-            )
-            return "https://youtu.be/" + info_dict["entries"][0]["id"]
+        titles = soup.find_all(
+            "a",
+            {
+                "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
+            },
+        )
+        href = [x["href"] for x in titles if x["href"]]
+        # delete user channels url
+        href = [x for x in href if "channel" not in x and "user" not in x]
+        id_video = href[0].split("?v=", 1)[-1]
+        if "&list" in id_video:
+            id_video = id_video.split("&list")[0]
+        logger.debug("href : %s.", href)
+        url = f"https://youtu.be/{id_video}"
     except Exception as e:
         logger.error(e)
         return None
-
-
-# def get_youtube_url(title):
-#     # Extracting youtube urls
-#     header = {
-#         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
-#     }
-#     with requests.Session() as session:
-#         session.headers.update = header
-#         logger.debug("Extracting youtube url for %s.", title)
-#         name = f"{title['artist']} - {title['title']}"
-#         url = "https://www.youtube.com/results?search_query=" + name.replace(
-#             " ", "+"
-#         ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
-#         logger.info("Youtube URL search : %s", url)
-#         soup = BeautifulSoup(session.get(url).content, "lxml")
-#     # Test if youtube is rate-limited
-#     if soup.find("form", {"id": "captcha-form"}):
-#         logger.error("Rate-limit detected on Youtube. Exiting.")
-#         return None
-#     try:
-#         titles = soup.find_all(
-#             "a",
-#             {
-#                 "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
-#             },
-#         )
-#         href = [x["href"] for x in titles if x["href"]]
-#         # delete user channels url
-#         href = [x for x in href if "channel" not in x and "user" not in x]
-#         id_video = href[0].split("?v=", 1)[-1]
-#         if "&list" in id_video:
-#             id_video = id_video.split("&list")[0]
-#         logger.debug("href : %s.", href)
-#         url = f"https://youtu.be/{id_video}"
-#     except Exception as e:
-#         logger.error(e)
-#         return None
-#     return url
+    return url
 
 
 def main():

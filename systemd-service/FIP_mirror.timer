@@ -2,7 +2,7 @@
 Description=Run the FIP_mirror script every minute.
 
 [Timer]
-OnCalendar=*:0/1
+OnCalendar=*:*:0/20
 Persistent=True
 
 [Install]
