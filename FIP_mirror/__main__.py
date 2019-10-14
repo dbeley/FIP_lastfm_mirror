@@ -13,8 +13,7 @@ import tweepy
 from mastodon import Mastodon
 from pathlib import Path
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+from youtube_dl import YoutubeDL
 
 logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -128,32 +127,15 @@ def mastodonconnect():
     return mastodon
 
 
-def get_soup(browser):
-    return BeautifulSoup(browser.page_source, "lxml")
+def get_soup(url):
+    return BeautifulSoup(requests.get(url).content, "lxml")
 
 
-def get_FIP_metadata(browser):
+def get_FIP_metadata():
     new_titles = []
 
     for url in URLS_WEBRADIOS:
-        browser.get(url)
-        # Click on cookie bar if found.
-        try:
-            browser.find_element_by_xpath(
-                "/html/body/div/div/div[2]/div[2]/button[2]/span"
-            ).click()
-            logger.debug("Cookie bar is now hidden.")
-        except Exception as e:
-            logger.debug("Cookie bar not found : %s.", e)
-
-        # Go to the bottom to load all the page.
-        # browser.execute_script(
-        #     "window.scrollTo(0, document.body.scrollHeight);"
-        # )
-        logger.debug("Waiting for 1 second.")
-        time.sleep(1)
-
-        soup = get_soup(browser)
+        soup = get_soup(url)
 
         metadata = {}
 
@@ -403,50 +385,71 @@ def post_tweet(title):
         )
 
 
-def get_youtube_url(title):
-    # Extracting youtube urls
-    header = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
-    }
-    with requests.Session() as session:
-        session.headers.update = header
-        logger.debug("Extracting youtube url for %s.", title)
-        name = f"{title['artist']} - {title['title']}"
-        url = "https://www.youtube.com/results?search_query=" + name.replace(
-            " ", "+"
-        ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
-        logger.info("Youtube URL search : %s", url)
-        soup = BeautifulSoup(session.get(url).content, "lxml")
-    # Test if youtube is rate-limited
-    if soup.find("form", {"id": "captcha-form"}):
-        logger.error("Rate-limit detected on Youtube. Exiting.")
-        return None
+class MyLogger(object):  # pragma: no cover
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        print(msg)
+
+
+def get_youtube_url(search_term):
     try:
-        titles = soup.find_all(
-            "a",
-            {
-                "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
-            },
-        )
-        href = [x["href"] for x in titles if x["href"]]
-        # delete user channels url
-        href = [x for x in href if "channel" not in x and "user" not in x]
-        id_video = href[0].split("?v=", 1)[-1]
-        if "&list" in id_video:
-            id_video = id_video.split("&list")[0]
-        logger.debug("href : %s.", href)
-        url = f"https://youtu.be/{id_video}"
+        ydl_opts = {"logger": MyLogger()}
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(
+                f"ytsearch1:{search_term}", download=False
+            )
+            return "https://youtu.be/" + info_dict["entries"][0]["id"]
     except Exception as e:
         logger.error(e)
         return None
-    return url
+
+
+# def get_youtube_url(title):
+#     # Extracting youtube urls
+#     header = {
+#         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
+#     }
+#     with requests.Session() as session:
+#         session.headers.update = header
+#         logger.debug("Extracting youtube url for %s.", title)
+#         name = f"{title['artist']} - {title['title']}"
+#         url = "https://www.youtube.com/results?search_query=" + name.replace(
+#             " ", "+"
+#         ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
+#         logger.info("Youtube URL search : %s", url)
+#         soup = BeautifulSoup(session.get(url).content, "lxml")
+#     # Test if youtube is rate-limited
+#     if soup.find("form", {"id": "captcha-form"}):
+#         logger.error("Rate-limit detected on Youtube. Exiting.")
+#         return None
+#     try:
+#         titles = soup.find_all(
+#             "a",
+#             {
+#                 "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
+#             },
+#         )
+#         href = [x["href"] for x in titles if x["href"]]
+#         # delete user channels url
+#         href = [x for x in href if "channel" not in x and "user" not in x]
+#         id_video = href[0].split("?v=", 1)[-1]
+#         if "&list" in id_video:
+#             id_video = id_video.split("&list")[0]
+#         logger.debug("href : %s.", href)
+#         url = f"https://youtu.be/{id_video}"
+#     except Exception as e:
+#         logger.error(e)
+#         return None
+#     return url
 
 
 def main():
     args = parse_args()
-    options = Options()
-    options.headless = args.no_headless
-    browser = webdriver.Firefox(options=options)
 
     # Loading last posted songs
     last_posted_songs_filename = "last_posted_songs"
@@ -457,7 +460,7 @@ def main():
         last_posted_songs = {}
     logger.debug("last_posted_songs contains : %s", last_posted_songs)
 
-    new_titles = get_FIP_metadata(browser)
+    new_titles = get_FIP_metadata()
 
     for title in new_titles:
         try:
@@ -518,10 +521,6 @@ def main():
                 logger.debug("No-posting mode activated.")
         except Exception as e:
             logger.error("Error for title %s : %s.", title, e)
-
-    logger.debug("Closing selenium browser.")
-    browser.close()
-    browser.quit()
 
     logger.info("Runtime : %.2f seconds." % (time.time() - BEGIN_TIME))
 
