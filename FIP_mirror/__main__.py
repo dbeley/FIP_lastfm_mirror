@@ -171,23 +171,26 @@ def get_FIP_metadata():
             metadata["artist"] = subtitle
 
         details = now_playing.find("div", {"class": "now-info-details"})
-        details_label = [
-            x.text
-            for x in details.find_all(
-                "span", {"class": "now-info-details-label"}
-            )
-        ]
-        logger.debug("details_label : %s.", details_label)
-        details_value = [
-            x.text.strip()
-            for x in details.find_all(
-                "span", {"class": "now-info-details-value"}
-            )
-        ]
-        logger.debug("details_value : %s.", details_value)
+        try:
+            details_label = [
+                x.text
+                for x in details.find_all(
+                    "span", {"class": "now-info-details-label"}
+                )
+            ]
+            logger.debug("details_label : %s.", details_label)
+            details_value = [
+                x.text.strip()
+                for x in details.find_all(
+                    "span", {"class": "now-info-details-value"}
+                )
+            ]
+            logger.debug("details_value : %s.", details_value)
 
-        for index, label in enumerate(details_label):
-            metadata[label.lower()] = details_value[index]
+            for index, label in enumerate(details_label):
+                metadata[label.lower()] = details_value[index]
+        except Exception as e:
+            logger.error(e)
 
         metadata["cover_url"] = now_playing.find(
             "div", {"class": "now-cover playing-now-cover"}
@@ -288,7 +291,7 @@ def post_tweet(title):
 
     # Search youtube video
     youtube_url = get_youtube_url(title)
-    logger.info(
+    logger.debug(
         "Youtube url for %s - %s : %s.",
         title["artist"],
         title["title"],
@@ -420,7 +423,7 @@ def get_youtube_url(title):
         url = "https://www.youtube.com/results?search_query=" + name.replace(
             " ", "+"
         ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
-        logger.info("Youtube URL search : %s", url)
+        logger.debug("Youtube URL search : %s", url)
         soup = BeautifulSoup(session.get(url).content, "lxml")
     # Test if youtube is rate-limited
     if soup.find("form", {"id": "captcha-form"}):
