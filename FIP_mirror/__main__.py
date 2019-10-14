@@ -173,8 +173,12 @@ def get_FIP_metadata():
         ]
         logger.debug(details_value)
 
-        for index, label in enumerate(details_label):
-            metadata[label.lower()] = details_value[index]
+        # for index, label in enumerate(details_label):
+        #     metadata[label.lower()] = details_value[index]
+        # album
+        metadata[details_label[0].lower()] = details_value[0]
+        # label
+        metadata[details_label[1].lower()] = details_value[1]
 
         metadata["cover_url"] = soup.find(
             "div", {"class": "now-cover playing-now-cover"}
