@@ -127,7 +127,10 @@ def mastodonconnect():
 
 
 def get_soup(url):
-    return BeautifulSoup(requests.get(url).content, "lxml")
+    return BeautifulSoup(
+        requests.get(url, headers={"Cache-Control": "no-cache"}).content,
+        "lxml",
+    )
 
 
 def get_FIP_metadata():
