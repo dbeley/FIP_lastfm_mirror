@@ -146,9 +146,14 @@ def get_FIP_metadata():
             "h1", {"class": "tracklist-content-title"}
         ).text.split()[-1]
 
-        metadata["title"] = soup.find("span", {"class": "now-info-title"}).text
+        now_playing = soup.find("div", {"class": "playing-now"})
+        metadata["title"] = now_playing.find(
+            "span", {"class": "now-info-title"}
+        ).text
 
-        subtitle = soup.find("span", {"class": "now-info-subtitle"}).text
+        subtitle = now_playing.find(
+            "span", {"class": "now-info-subtitle"}
+        ).text
         try:
             potential_year = (
                 subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
@@ -162,30 +167,26 @@ def get_FIP_metadata():
             logger.error(e)
             metadata["artist"] = subtitle
 
-        details = soup.find("div", {"class": "now-info-details"})
+        details = now_playing.find("div", {"class": "now-info-details"})
         details_label = [
             x.text
             for x in details.find_all(
                 "span", {"class": "now-info-details-label"}
             )
         ]
-        logger.debug(details_label)
+        logger.debug("details_label : %s.", details_label)
         details_value = [
             x.text.strip()
             for x in details.find_all(
                 "span", {"class": "now-info-details-value"}
             )
         ]
-        logger.debug(details_value)
+        logger.debug("details_value : %s.", details_value)
 
         for index, label in enumerate(details_label):
             metadata[label.lower()] = details_value[index]
-        # # album
-        # metadata[details_label[0].lower()] = details_value[0]
-        # # label
-        # metadata[details_label[1].lower()] = details_value[1]
 
-        metadata["cover_url"] = soup.find(
+        metadata["cover_url"] = now_playing.find(
             "div", {"class": "now-cover playing-now-cover"}
         ).find("img")["src"]
 
