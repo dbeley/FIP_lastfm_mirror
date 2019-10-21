@@ -2,9 +2,7 @@
 
 Scripts mirroring the FIP webradios on lastfm, twitter and mastodon.
 
-Since the FIP redesign, the http://www.fipradio.fr/livemeta links don't seem to be available anymore.
-
-This mirror use webscraping to extract metadata from the fip website. The new website is quite javascript-heavy, hence the use of selenium.
+Since the FIP redesign, the http://www.fipradio.fr/livemeta containing the metadata in xml format isn't available anymore.
 
 You can find the mirrors on the following lastfm accounts :
 
