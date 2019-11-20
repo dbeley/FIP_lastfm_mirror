@@ -69,7 +69,7 @@ def get_entry_from_dict(title, entry):
 def export_to_timeline(title):
     with open(TIMELINE_FILE, "a") as f:
         f.write(
-            f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S};FIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
+            f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}\tFIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
         )
 
 
