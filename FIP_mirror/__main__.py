@@ -133,74 +133,77 @@ def get_soup(url):
     )
 
 
+def parse_fip_item(webradio, item):
+    metadata = {}
+    metadata["webradio"] = webradio
+    metadata["title"] = item.find("span", {"class": "now-info-title"}).text
+
+    subtitle = item.find("span", {"class": "now-info-subtitle"}).text
+    try:
+        potential_year = (
+            subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
+        )
+        if potential_year.isdigit():
+            metadata["year"] = potential_year
+            metadata["artist"] = subtitle.rsplit(" ", 1)[0]
+        else:
+            metadata["artist"] = subtitle
+    except Exception as e:
+        logger.error(e)
+        metadata["artist"] = subtitle
+
+    details = item.find("div", {"class": "now-info-details"})
+    try:
+        details_label = [
+            x.text
+            for x in details.find_all(
+                "span", {"class": "now-info-details-label"}
+            )
+        ]
+        logger.debug("details_label : %s.", details_label)
+        details_value = [
+            x.text.strip()
+            for x in details.find_all(
+                "span", {"class": "now-info-details-value"}
+            )
+        ]
+        logger.debug("details_value : %s.", details_value)
+
+        for index, label in enumerate(details_label):
+            metadata[label.lower()] = details_value[index]
+    except Exception as e:
+        logger.error(e)
+
+    # metadata["cover_url"] = item.find(
+    #     "div", {"class": "now-cover playing-now-cover"}
+    # ).find("img")["src"]
+    metadata["cover_url"] = item.find("img")["src"]
+
+    if not metadata["cover_url"].startswith("http"):
+        metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
+
+    logger.debug(metadata)
+    return metadata
+
+
 def get_FIP_metadata():
     new_titles = []
 
     for url in URLS_WEBRADIOS:
         soup = get_soup(url)
 
-        metadata = {}
-
         # Taking the last word
         # "En direct sur FIP" becomes FIP
         # "En direct sur FIP Rock" becomes Rock
         # "h1", {"class": "channel-header-title"}
-        metadata["webradio"] = soup.find(
+        webradio = soup.find(
             "h1", {"class": "tracklist-content-title"}
         ).text.split()[-1]
+        list_dict_tracks = []
 
+        # First item : now playing
         now_playing = soup.find("div", {"class": "playing-now"})
-        metadata["title"] = now_playing.find(
-            "span", {"class": "now-info-title"}
-        ).text
-
-        subtitle = now_playing.find(
-            "span", {"class": "now-info-subtitle"}
-        ).text
-        try:
-            potential_year = (
-                subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
-            )
-            if potential_year.isdigit():
-                metadata["year"] = potential_year
-                metadata["artist"] = subtitle.rsplit(" ", 1)[0]
-            else:
-                metadata["artist"] = subtitle
-        except Exception as e:
-            logger.error(e)
-            metadata["artist"] = subtitle
-
-        details = now_playing.find("div", {"class": "now-info-details"})
-        try:
-            details_label = [
-                x.text
-                for x in details.find_all(
-                    "span", {"class": "now-info-details-label"}
-                )
-            ]
-            logger.debug("details_label : %s.", details_label)
-            details_value = [
-                x.text.strip()
-                for x in details.find_all(
-                    "span", {"class": "now-info-details-value"}
-                )
-            ]
-            logger.debug("details_value : %s.", details_value)
-
-            for index, label in enumerate(details_label):
-                metadata[label.lower()] = details_value[index]
-        except Exception as e:
-            logger.error(e)
-
-        metadata["cover_url"] = now_playing.find(
-            "div", {"class": "now-cover playing-now-cover"}
-        ).find("img")["src"]
-
-        if not metadata["cover_url"].startswith("http"):
-            metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
-
-        logger.debug(metadata)
-
+        metadata = parse_fip_item(webradio, now_playing)
         if (
             # At least webradio, artist, title in dict.
             {"webradio", "artist", "title"} <= set(metadata)
@@ -208,11 +211,22 @@ def get_FIP_metadata():
             and metadata["title"] != ""
             and metadata["artist"] != ""
         ):
-            new_titles.append(metadata)
-        else:
-            logger.info(
-                "Metadata %s didn't fullfill the requirements.", metadata
-            )
+            list_dict_tracks.append(metadata)
+
+        # Other items : broadcasted tracks
+        list_tracks = soup.find_all("li", {"class": "list-item timeline-item"})
+        for i in list_tracks:
+            metadata = parse_fip_item(webradio, i)
+            if (
+                # At least webradio, artist, title in dict.
+                {"webradio", "artist", "title"} <= set(metadata)
+                and metadata["webradio"] in ENABLED_WEBRADIOS
+                and metadata["title"] != ""
+                and metadata["artist"] != ""
+            ):
+                list_dict_tracks.append(metadata)
+        new_titles.append(list_dict_tracks)
+
     logger.debug("New titles : %s", new_titles)
     return new_titles
 
@@ -450,6 +464,18 @@ def get_youtube_url(title):
     return url
 
 
+def post_title(args, title):
+    export_to_timeline(title)
+
+    if not args.no_posting:
+        # post to lastfm (all webradios)
+        post_title_to_lastfm(title)
+
+        # post to twitter/mastodon (main webradio)
+        if title["webradio"] == "FIP":
+            post_tweet(title)
+
+
 def main():
     args = parse_args()
 
@@ -464,65 +490,53 @@ def main():
 
     new_titles = get_FIP_metadata()
 
-    for title in new_titles:
-        try:
-            logger.debug(
-                "Testing if %s - %s for the %s webradio has been posted.",
-                title["artist"],
-                title["title"],
-                title["webradio"],
+    # list of list
+    for webradio_titles in new_titles:
+        # test if webradio in last_posted_songs
+        # if key doesn't exist in dict (i.e. first iteration)
+        if not webradio_titles[0]["webradio"] in last_posted_songs:
+            # add title to posted titles
+            last_posted_songs[
+                webradio_titles[0]["webradio"]
+            ] = f"{webradio_titles[0]['artist']} - {webradio_titles[0]['title']}"
+            logger.info(
+                "1ère it - %s - %s posted to %s.",
+                webradio_titles[0]["artist"],
+                webradio_titles[0]["title"],
+                webradio_titles[0]["webradio"],
             )
-            if not args.no_posting:
-                # if key doesn't exist in dict (i.e. first iteration)
-                if not title["webradio"] in last_posted_songs:
 
-                    # add title to posted titles
-                    last_posted_songs[
-                        title["webradio"]
-                    ] = f"{title['artist']} - {title['title']}"
+            post_title(args, webradio_titles[0])
 
-                    export_to_timeline(title)
-
-                    # post to lastfm (all webradios)
-                    post_title_to_lastfm(title)
-
-                    # post to twitter/mastodon (main webradio)
-                    if title["webradio"] == "FIP":
-                        post_tweet(title)
-                # if title is not the last title posted
+        else:
+            index_last_posted = 0
+            for index, title in enumerate(webradio_titles):
                 if (
                     f"{title['artist']} - {title['title']}"
-                    != last_posted_songs[title["webradio"]]
+                    == last_posted_songs[title["webradio"]]
                 ):
+                    index_last_posted = index
+            # if current song is not the last posted
+            if index_last_posted != 0:
+                title = webradio_titles[index_last_posted - 1]
+                # add title to posted titles
+                last_posted_songs[
+                    title["webradio"]
+                ] = f"{title['artist']} - {title['title']}"
+                logger.info(
+                    "index %s : %s - %s posted to %s.",
+                    index_last_posted - 1,
+                    title["artist"],
+                    title["title"],
+                    title["webradio"],
+                )
 
-                    # add title to posted titles
-                    last_posted_songs[
-                        title["webradio"]
-                    ] = f"{title['artist']} - {title['title']}"
+                post_title(args, title)
 
-                    export_to_timeline(title)
-
-                    # post to lastfm (all webradios)
-                    post_title_to_lastfm(title)
-
-                    # post to twitter/mastodon (main webradio)
-                    if title["webradio"] == "FIP":
-                        post_tweet(title)
-                else:
-                    logger.debug(
-                        "%s : %s already posted. Skipping.",
-                        title["webradio"],
-                        title["title"],
-                    )
-
-                # Exporting each time
-                logger.debug("Exporting last_posted_songs.")
-                with open(last_posted_songs_filename, "w") as f:
-                    json.dump(last_posted_songs, f)
-            else:
-                logger.debug("No-posting mode activated.")
-        except Exception as e:
-            logger.error("Error for title %s : %s.", title, e)
+        # Exporting json each time
+        logger.debug("Exporting last_posted_songs.")
+        with open(last_posted_songs_filename, "w") as f:
+            json.dump(last_posted_songs, f)
 
     logger.info("Runtime : %.2f seconds." % (time.time() - BEGIN_TIME))
 
