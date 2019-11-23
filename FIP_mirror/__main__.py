@@ -149,7 +149,7 @@ def parse_fip_item(webradio, item):
         else:
             metadata["artist"] = subtitle
     except Exception as e:
-        logger.error(e)
+        logger.error("potential_year : %s.", e)
         metadata["artist"] = subtitle
 
     details = item.find("div", {"class": "now-info-details"})
@@ -203,15 +203,17 @@ def get_FIP_metadata():
 
         # First item : now playing
         now_playing = soup.find("div", {"class": "playing-now"})
-        metadata = parse_fip_item(webradio, now_playing)
-        if (
-            # At least webradio, artist, title in dict.
-            {"webradio", "artist", "title"} <= set(metadata)
-            and metadata["webradio"] in ENABLED_WEBRADIOS
-            and metadata["title"] != ""
-            and metadata["artist"] != ""
-        ):
-            list_dict_tracks.append(metadata)
+        # If something is playing, otherwise just extract the old tracks
+        if now_playing.find("span", {"class": "now-info-title"}).text != "":
+            metadata = parse_fip_item(webradio, now_playing)
+            if (
+                # At least webradio, artist, title in dict.
+                {"webradio", "artist", "title"} <= set(metadata)
+                and metadata["webradio"] in ENABLED_WEBRADIOS
+                and metadata["title"] != ""
+                and metadata["artist"] != ""
+            ):
+                list_dict_tracks.append(metadata)
 
         # Other items : broadcasted tracks
         list_tracks = soup.find_all("li", {"class": "list-item timeline-item"})
@@ -459,7 +461,7 @@ def get_youtube_url(title):
         logger.debug("href : %s.", href)
         url = f"https://youtu.be/{id_video}"
     except Exception as e:
-        logger.error(e)
+        logger.error("get_youtube_url : %s.", e)
         return None
     return url
 
@@ -499,7 +501,7 @@ def main():
             last_posted_songs[
                 webradio_titles[0]["webradio"]
             ] = f"{webradio_titles[0]['artist']} - {webradio_titles[0]['title']}"
-            logger.info(
+            logger.debug(
                 "1ère it - %s - %s posted to %s.",
                 webradio_titles[0]["artist"],
                 webradio_titles[0]["title"],
@@ -523,7 +525,7 @@ def main():
                 last_posted_songs[
                     title["webradio"]
                 ] = f"{title['artist']} - {title['title']}"
-                logger.info(
+                logger.debug(
                     "index %s : %s - %s posted to %s.",
                     index_last_posted - 1,
                     title["artist"],
