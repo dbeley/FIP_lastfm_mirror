@@ -494,46 +494,35 @@ def main():
 
     # list of list
     for webradio_titles in new_titles:
-        # test if webradio in last_posted_songs
-        # if key doesn't exist in dict (i.e. first iteration)
-        if not webradio_titles[0]["webradio"] in last_posted_songs:
-            # add title to posted titles
-            last_posted_songs[
-                webradio_titles[0]["webradio"]
-            ] = f"{webradio_titles[0]['artist']} - {webradio_titles[0]['title']}"
-            logger.debug(
-                "1ère it - %s - %s posted to %s.",
-                webradio_titles[0]["artist"],
-                webradio_titles[0]["title"],
-                webradio_titles[0]["webradio"],
+        formatted_titles = [
+            f"{x['artist']} - {x['title']}" for x in webradio_titles
+        ]
+        current_webradio = webradio_titles[0]["webradio"]
+        if last_posted_songs[current_webradio] in formatted_titles:
+            index = (
+                formatted_titles.index(last_posted_songs[current_webradio]) - 1
             )
-
-            post_title(args, webradio_titles[0])
-
+            logger.debug(
+                "%s - %s posted to %s.",
+                webradio_titles[index]["artist"],
+                webradio_titles[index]["title"],
+                webradio_titles[index]["webradio"],
+            )
+            last_posted_songs[current_webradio] = formatted_titles[index]
+            post_title(
+                args, webradio_titles[index],
+            )
         else:
-            index_last_posted = 0
-            for index, title in enumerate(webradio_titles):
-                if (
-                    f"{title['artist']} - {title['title']}"
-                    == last_posted_songs[title["webradio"]]
-                ):
-                    index_last_posted = index
-            # if current song is not the last posted
-            if index_last_posted != 0:
-                title = webradio_titles[index_last_posted - 1]
-                # add title to posted titles
-                last_posted_songs[
-                    title["webradio"]
-                ] = f"{title['artist']} - {title['title']}"
-                logger.debug(
-                    "index %s : %s - %s posted to %s.",
-                    index_last_posted - 1,
-                    title["artist"],
-                    title["title"],
-                    title["webradio"],
-                )
-
-                post_title(args, title)
+            logger.debug(
+                "%s - %s posted to %s.",
+                webradio_titles[-1]["artist"],
+                webradio_titles[-1]["title"],
+                webradio_titles[-1]["webradio"],
+            )
+            last_posted_songs[current_webradio] = formatted_titles[-1]
+            post_title(
+                args, webradio_titles[-1],
+            )
 
         # Exporting json each time
         logger.debug("Exporting last_posted_songs.")
