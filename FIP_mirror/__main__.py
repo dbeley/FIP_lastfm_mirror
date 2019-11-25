@@ -498,6 +498,7 @@ def main():
             f"{x['artist']} - {x['title']}" for x in webradio_titles
         ]
         current_webradio = webradio_titles[0]["webradio"]
+        # webradio not in dict, i.e. first iteration.
         if current_webradio not in last_posted_songs:
             logger.debug(
                 "%s - %s posted to %s.",
@@ -509,10 +510,12 @@ def main():
             post_title(
                 args, webradio_titles[0],
             )
-        if last_posted_songs[current_webradio] in formatted_titles:
+        # posting next song if last_posted_song exists in formatted_titles
+        elif last_posted_songs[current_webradio] in formatted_titles:
             index = (
                 formatted_titles.index(last_posted_songs[current_webradio]) - 1
             )
+            # if last_played_song is not the current one playing.
             if index != -1:
                 logger.debug(
                     "%s - %s posted to %s.",
@@ -524,6 +527,7 @@ def main():
                 post_title(
                     args, webradio_titles[index],
                 )
+        # if last_posted_song is too outdated, posting the current track playing.
         else:
             logger.debug(
                 "%s - %s posted to %s.",
@@ -531,7 +535,7 @@ def main():
                 webradio_titles[0]["title"],
                 webradio_titles[0]["webradio"],
             )
-            last_posted_songs[current_webradio] = formatted_titles[-1]
+            last_posted_songs[current_webradio] = formatted_titles[0]
             post_title(
                 args, webradio_titles[0],
             )
