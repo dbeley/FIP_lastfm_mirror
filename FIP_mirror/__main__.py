@@ -89,15 +89,15 @@ def lastfmconnect(webradio_name):
     return network
 
 
-def twitterconnect():
-    consumer_key = config["twitter"]["consumer_key"]
-    secret_key = config["twitter"]["secret_key"]
-    access_token = config["twitter"]["access_token"]
-    access_token_secret = config["twitter"]["access_token_secret"]
-
-    auth = tweepy.OAuthHandler(consumer_key, secret_key)
-    auth.set_access_token(access_token, access_token_secret)
-    return tweepy.API(auth)
+# def twitterconnect():
+#    consumer_key = config["twitter"]["consumer_key"]
+#    secret_key = config["twitter"]["secret_key"]
+#    access_token = config["twitter"]["access_token"]
+#    access_token_secret = config["twitter"]["access_token_secret"]
+#
+#    auth = tweepy.OAuthHandler(consumer_key, secret_key)
+#    auth.set_access_token(access_token, access_token_secret)
+#    return tweepy.API(auth)
 
 
 def mastodonconnect():
@@ -139,18 +139,19 @@ def parse_fip_item(webradio, item):
     metadata["title"] = item.find("span", {"class": "now-info-title"}).text
 
     subtitle = item.find("span", {"class": "now-info-subtitle"}).text
-    try:
-        potential_year = (
-            subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
-        )
-        if potential_year.isdigit():
-            metadata["year"] = potential_year
-            metadata["artist"] = subtitle.rsplit(" ", 1)[0]
-        else:
-            metadata["artist"] = subtitle
-    except Exception as e:
-        logger.error("potential_year : %s.", e)
-        metadata["artist"] = subtitle
+    # try:
+    #     potential_year = (
+    #         subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
+    #     )
+    #     if potential_year.isdigit():
+    #         metadata["year"] = potential_year
+    #         metadata["artist"] = subtitle.rsplit(" ", 1)[0]
+    #     else:
+    #         metadata["artist"] = subtitle
+    # except Exception as e:
+    #     logger.error("potential_year : %s.", e)
+    #     metadata["artist"] = subtitle
+    metadata["artist"] = subtitle
 
     details = item.find("div", {"class": "now-info-details"})
     try:
@@ -173,6 +174,21 @@ def parse_fip_item(webradio, item):
             metadata[label.lower()] = details_value[index]
     except Exception as e:
         logger.error(e)
+
+    if "album" in metadata:
+        subtitle = metadata["album"]
+        try:
+            potential_year = (
+                subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
+            )
+            if potential_year.isdigit():
+                metadata["year"] = potential_year
+                metadata["album"] = subtitle.rsplit(" ", 1)[0]
+            else:
+                metadata["album"] = subtitle
+        except Exception as e:
+            logger.error("potential_year : %s.", e)
+            metadata["album"] = subtitle
 
     # metadata["cover_url"] = item.find(
     #     "div", {"class": "now-cover playing-now-cover"}
@@ -301,7 +317,7 @@ def get_lastfm_cover(network, title):
 
 
 def post_tweet(title):
-    twitter_api = twitterconnect()
+    # twitter_api = twitterconnect()
     mastodon_api = mastodonconnect()
     lastfm_api = lastfmconnect(title["webradio"])
 
@@ -329,10 +345,11 @@ def post_tweet(title):
     if youtube_url:
         additional_infos += f" {youtube_url}"
 
-    tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
+    tweet_text = f"{title['artist']} - {title['title']}{additional_infos} #fipradio #nowplaying"
+    # tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
     if "album" in title:
         logger.info(
-            "Twitter : Posting %s - %s (%s). Tweet text : %s.",
+            "Mastodon : Posting %s - %s (%s). Tweet text : %s.",
             title["artist"],
             title["title"],
             title["album"],
@@ -345,12 +362,12 @@ def post_tweet(title):
             if cover and cover.status_code == 200:
                 with open("cover.jpg", "wb") as f:
                     f.write(cover.content)
-                try:
-                    tweet_image(
-                        twitter_api, "cover.jpg", tweet_text, "twitter"
-                    )
-                except Exception as e:
-                    logger.error("Error posting tweet to Twitter : %s.", e)
+                # try:
+                #     tweet_image(
+                #         twitter_api, "cover.jpg", tweet_text, "twitter"
+                #     )
+                # except Exception as e:
+                #     logger.error("Error posting tweet to Twitter : %s.", e)
                 try:
                     tweet_image(
                         mastodon_api, "cover.jpg", tweet_text, "mastodon"
@@ -359,7 +376,7 @@ def post_tweet(title):
                     logger.error("Error posting tweet to Mastodon : %s.", e)
             # Problem with the cover download
             else:
-                twitter_api.update_status(status=tweet_text)
+                # twitter_api.update_status(status=tweet_text)
                 mastodon_api.status_post(tweet_text)
         # Cover is the placeholder, searching on lastfm
         elif "cover_url" in title and "placeholder" in title["cover_url"]:
@@ -368,12 +385,12 @@ def post_tweet(title):
             if cover and cover.status_code == 200:
                 with open("cover.png", "wb") as f:
                     f.write(cover.content)
-                try:
-                    tweet_image(
-                        twitter_api, "cover.png", tweet_text, "twitter"
-                    )
-                except Exception as e:
-                    logger.error("Error posting tweet to Twitter : %s.", e)
+                # try:
+                #     tweet_image(
+                #         twitter_api, "cover.png", tweet_text, "twitter"
+                #     )
+                # except Exception as e:
+                #     logger.error("Error posting tweet to Twitter : %s.", e)
                 try:
                     tweet_image(
                         mastodon_api, "cover.png", tweet_text, "mastodon"
@@ -382,34 +399,34 @@ def post_tweet(title):
                     logger.error("Error posting tweet to Mastodon : %s.", e)
             # Cover not found on lastfm
             else:
-                try:
-                    twitter_api.update_status(status=tweet_text)
-                except Exception as e:
-                    logger.error("Error posting tweet to Twitter : %s.", e)
+                # try:
+                #     twitter_api.update_status(status=tweet_text)
+                # except Exception as e:
+                #     logger.error("Error posting tweet to Twitter : %s.", e)
                 try:
                     mastodon_api.status_post(tweet_text)
                 except Exception as e:
                     logger.error("Error posting tweet to Mastodon : %s.", e)
         else:
-            try:
-                twitter_api.update_status(status=tweet_text)
-            except Exception as e:
-                logger.error("Error posting tweet to Twitter : %s.", e)
+            # try:
+            #     twitter_api.update_status(status=tweet_text)
+            # except Exception as e:
+            #     logger.error("Error posting tweet to Twitter : %s.", e)
             try:
                 mastodon_api.status_post(tweet_text)
             except Exception as e:
                 logger.error("Error posting tweet to Mastodon : %s.", e)
     else:
-        try:
-            twitter_api.update_status(status=tweet_text)
-        except Exception as e:
-            logger.error("Error posting tweet to Twitter : %s.", e)
+        # try:
+        #     twitter_api.update_status(status=tweet_text)
+        # except Exception as e:
+        #     logger.error("Error posting tweet to Twitter : %s.", e)
         try:
             mastodon_api.status_post(tweet_text)
         except Exception as e:
             logger.error("Error posting tweet to Mastodon : %s.", e)
         logger.info(
-            "Twitter : Posting %s - %s. Tweet text : %s.",
+            "Mastodon : Posting %s - %s. Tweet text : %s.",
             title["artist"],
             title["title"],
             tweet_text,
