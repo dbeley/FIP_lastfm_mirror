@@ -128,17 +128,18 @@ def mastodonconnect():
 
 def get_soup(url):
     return BeautifulSoup(
-        requests.get(url, headers={"Cache-Control": "no-cache"}).content,
-        "lxml",
+        requests.get(url, headers={"Cache-Control": "no-cache"}).content, "lxml",
     )
 
 
 def parse_fip_item(webradio, item):
     metadata = {}
     metadata["webradio"] = webradio
-    metadata["title"] = item.find("span", {"class": "now-info-title"}).text
+    metadata["title"] = item.find("span", {"class": "now-info-title"}).text.replace(
+        "\t", ""
+    )
 
-    subtitle = item.find("span", {"class": "now-info-subtitle"}).text
+    subtitle = item.find("span", {"class": "now-info-subtitle"}).text.replace("\t", "")
     # try:
     #     potential_year = (
     #         subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
@@ -157,16 +158,12 @@ def parse_fip_item(webradio, item):
     try:
         details_label = [
             x.text
-            for x in details.find_all(
-                "span", {"class": "now-info-details-label"}
-            )
+            for x in details.find_all("span", {"class": "now-info-details-label"})
         ]
         logger.debug("details_label : %s.", details_label)
         details_value = [
             x.text.strip()
-            for x in details.find_all(
-                "span", {"class": "now-info-details-value"}
-            )
+            for x in details.find_all("span", {"class": "now-info-details-value"})
         ]
         logger.debug("details_value : %s.", details_value)
 
@@ -176,7 +173,7 @@ def parse_fip_item(webradio, item):
         logger.error(e)
 
     if "album" in metadata:
-        subtitle = metadata["album"]
+        subtitle = metadata["album"].replace("\t", "")
         try:
             potential_year = (
                 subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
@@ -193,7 +190,7 @@ def parse_fip_item(webradio, item):
     # metadata["cover_url"] = item.find(
     #     "div", {"class": "now-cover playing-now-cover"}
     # ).find("img")["src"]
-    metadata["cover_url"] = item.find("img")["src"]
+    metadata["cover_url"] = item.find("img")["src"].replace("\t", "")
 
     if not metadata["cover_url"].startswith("http"):
         metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
@@ -212,9 +209,9 @@ def get_FIP_metadata():
         # "En direct sur FIP" becomes FIP
         # "En direct sur FIP Rock" becomes Rock
         # "h1", {"class": "channel-header-title"}
-        webradio = soup.find(
-            "h1", {"class": "tracklist-content-title"}
-        ).text.split()[-1]
+        webradio = soup.find("h1", {"class": "tracklist-content-title"}).text.split()[
+            -1
+        ]
         list_dict_tracks = []
 
         # First item : now playing
@@ -276,9 +273,7 @@ def post_title_to_lastfm(title):
             title["webradio"],
         )
         network.scrobble(
-            artist=title["artist"],
-            title=title["title"],
-            timestamp=unix_timestamp,
+            artist=title["artist"], title=title["title"], timestamp=unix_timestamp,
         )
 
 
@@ -324,10 +319,7 @@ def post_tweet(title):
     # Search youtube video
     youtube_url = get_youtube_url(title)
     logger.debug(
-        "Youtube url for %s - %s : %s.",
-        title["artist"],
-        title["title"],
-        youtube_url,
+        "Youtube url for %s - %s : %s.", title["artist"], title["title"], youtube_url,
     )
 
     # Four cases :
@@ -345,7 +337,9 @@ def post_tweet(title):
     if youtube_url:
         additional_infos += f" {youtube_url}"
 
-    tweet_text = f"{title['artist']} - {title['title']}{additional_infos} #fipradio #nowplaying"
+    tweet_text = (
+        f"{title['artist']} - {title['title']}{additional_infos} #fipradio #nowplaying"
+    )
     # tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
     if "album" in title:
         logger.info(
@@ -369,9 +363,7 @@ def post_tweet(title):
                 # except Exception as e:
                 #     logger.error("Error posting tweet to Twitter : %s.", e)
                 try:
-                    tweet_image(
-                        mastodon_api, "cover.jpg", tweet_text, "mastodon"
-                    )
+                    tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
                 except Exception as e:
                     logger.error("Error posting tweet to Mastodon : %s.", e)
             # Problem with the cover download
@@ -392,9 +384,7 @@ def post_tweet(title):
                 # except Exception as e:
                 #     logger.error("Error posting tweet to Twitter : %s.", e)
                 try:
-                    tweet_image(
-                        mastodon_api, "cover.png", tweet_text, "mastodon"
-                    )
+                    tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
                 except Exception as e:
                     logger.error("Error posting tweet to Mastodon : %s.", e)
             # Cover not found on lastfm
@@ -511,9 +501,7 @@ def main():
 
     # list of list
     for webradio_titles in new_titles:
-        formatted_titles = [
-            f"{x['artist']} - {x['title']}" for x in webradio_titles
-        ]
+        formatted_titles = [f"{x['artist']} - {x['title']}" for x in webradio_titles]
         current_webradio = webradio_titles[0]["webradio"]
         # webradio not in dict, i.e. first iteration.
         if current_webradio not in last_posted_songs:
@@ -529,9 +517,7 @@ def main():
             )
         # posting next song if last_posted_song exists in formatted_titles
         elif last_posted_songs[current_webradio] in formatted_titles:
-            index = (
-                formatted_titles.index(last_posted_songs[current_webradio]) - 1
-            )
+            index = formatted_titles.index(last_posted_songs[current_webradio]) - 1
             # if last_played_song is not the current one playing.
             if index != -1:
                 logger.debug(
@@ -585,10 +571,7 @@ def parse_args():
         action="store_false",
     )
     parser.add_argument(
-        "--no_posting",
-        help="Disable posting.",
-        dest="no_posting",
-        action="store_true",
+        "--no_posting", help="Disable posting.", dest="no_posting", action="store_true",
     )
     parser.set_defaults(no_headless=True, no_posting=False)
     args = parser.parse_args()
