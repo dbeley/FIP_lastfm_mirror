@@ -9,3 +9,4 @@ cover.png
 cover.jpg
 *.secret
 *.csv
+build/

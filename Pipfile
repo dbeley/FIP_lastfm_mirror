@@ -4,9 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pytest = "*"
 
 [packages]
-fip-mirror = {editable = true,path = "."}
+fip-mirror = {editable = true, path = "."}
+youtube-dl = "*"
 
 [requires]
 python_version = "3.8"

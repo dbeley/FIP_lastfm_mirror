@@ -9,14 +9,15 @@ import argparse
 import datetime
 import configparser
 import pylast
-import tweepy
 from mastodon import Mastodon
 from pathlib import Path
 from bs4 import BeautifulSoup
 
+# import tweepy
+from .ydl_utils import get_youtube_url
+
 logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("selenium").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("tweepy").setLevel(logging.WARNING)
 logging.getLogger("chardet.charsetprober").setLevel(logging.WARNING)
@@ -30,10 +31,11 @@ ENABLED_WEBRADIOS = [
     "Rock",
     "Jazz",
     "Groove",
-    "Monde",
-    "Nouveautés",
-    "Reggae",
+    "Pop",
     "Electro",
+    "Monde",
+    "Reggae",
+    "Nouveautés",
     "Metal",
 ]
 URLS_WEBRADIOS = [
@@ -45,6 +47,7 @@ URLS_WEBRADIOS = [
     "https://www.fip.fr/titres-diffuses?station=tout-nouveau-tout-fip",
     "https://www.fip.fr/titres-diffuses?station=reggae",
     "https://www.fip.fr/titres-diffuses?station=electro",
+    "https://www.fip.fr/titres-diffuses?station=pop",
     # "https://www.fip.fr/titres-diffuses?station=metal",
     # "https://www.fip.fr",
     # "https://www.fip.fr/rock/webradio",
@@ -56,7 +59,6 @@ URLS_WEBRADIOS = [
     # "https://www.fip.fr/electro/webradio",
     # "https://www.fip.fr/fip-metal/webradio",
 ]
-TIMELINE_FILE = "fip-timeline.csv"
 
 
 def get_entry_from_dict(title, entry):
@@ -66,8 +68,8 @@ def get_entry_from_dict(title, entry):
         return ""
 
 
-def export_to_timeline(title):
-    with open(TIMELINE_FILE, "a") as f:
+def export_to_timeline(timeline_filename, title):
+    with open(timeline_filename, "a") as f:
         f.write(
             f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}\tFIP {get_entry_from_dict(title, 'webradio')}\t{get_entry_from_dict(title, 'artist')}\t{get_entry_from_dict(title, 'title')}\t{get_entry_from_dict(title, 'album')}\t{get_entry_from_dict(title, 'year')}\t{get_entry_from_dict(title, 'label')}\t{get_entry_from_dict(title, 'cover_url')}\n"
         )
@@ -128,7 +130,8 @@ def mastodonconnect():
 
 def get_soup(url):
     return BeautifulSoup(
-        requests.get(url, headers={"Cache-Control": "no-cache"}).content, "lxml",
+        requests.get(url, headers={"Cache-Control": "no-cache"}).content,
+        "lxml",
     )
 
 
@@ -140,18 +143,6 @@ def parse_fip_item(webradio, item):
     )
 
     subtitle = item.find("span", {"class": "now-info-subtitle"}).text.replace("\t", "")
-    # try:
-    #     potential_year = (
-    #         subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
-    #     )
-    #     if potential_year.isdigit():
-    #         metadata["year"] = potential_year
-    #         metadata["artist"] = subtitle.rsplit(" ", 1)[0]
-    #     else:
-    #         metadata["artist"] = subtitle
-    # except Exception as e:
-    #     logger.error("potential_year : %s.", e)
-    #     metadata["artist"] = subtitle
     metadata["artist"] = subtitle
 
     details = item.find("div", {"class": "now-info-details"})
@@ -187,9 +178,6 @@ def parse_fip_item(webradio, item):
             logger.error("potential_year : %s.", e)
             metadata["album"] = subtitle
 
-    # metadata["cover_url"] = item.find(
-    #     "div", {"class": "now-cover playing-now-cover"}
-    # ).find("img")["src"]
     metadata["cover_url"] = item.find("img")["src"].replace("\t", "")
 
     if not metadata["cover_url"].startswith("http"):
@@ -273,7 +261,9 @@ def post_title_to_lastfm(title):
             title["webradio"],
         )
         network.scrobble(
-            artist=title["artist"], title=title["title"], timestamp=unix_timestamp,
+            artist=title["artist"],
+            title=title["title"],
+            timestamp=unix_timestamp,
         )
 
 
@@ -319,7 +309,10 @@ def post_tweet(title):
     # Search youtube video
     youtube_url = get_youtube_url(title)
     logger.debug(
-        "Youtube url for %s - %s : %s.", title["artist"], title["title"], youtube_url,
+        "Youtube url for %s - %s : %s.",
+        title["artist"],
+        title["title"],
+        youtube_url,
     )
 
     # Four cases :
@@ -434,55 +427,17 @@ class MyLogger(object):  # pragma: no cover
         print(msg)
 
 
-def get_youtube_url(title):
-    # Extracting youtube urls
-    header = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0"
-    }
-    with requests.Session() as session:
-        session.headers.update = header
-        logger.debug("Extracting youtube url for %s.", title)
-        name = f"{title['artist']} - {title['title']}"
-        url = "https://www.youtube.com/results?search_query=" + name.replace(
-            " ", "+"
-        ).replace("&", "%26").replace("(", "%28").replace(")", "%29")
-        logger.debug("Youtube URL search : %s", url)
-        soup = BeautifulSoup(session.get(url).content, "lxml")
-    # Test if youtube is rate-limited
-    if soup.find("form", {"id": "captcha-form"}):
-        logger.error("Rate-limit detected on Youtube. Exiting.")
-        return None
-    try:
-        titles = soup.find_all(
-            "a",
-            {
-                "class": "yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink spf-link"
-            },
-        )
-        href = [x["href"] for x in titles if x["href"]]
-        # delete user channels url
-        href = [x for x in href if "channel" not in x and "user" not in x]
-        id_video = href[0].split("?v=", 1)[-1]
-        if "&list" in id_video:
-            id_video = id_video.split("&list")[0]
-        logger.debug("href : %s.", href)
-        url = f"https://youtu.be/{id_video}"
-    except Exception as e:
-        logger.error("get_youtube_url : %s.", e)
-        return None
-    return url
-
-
 def post_title(args, title):
-    export_to_timeline(title)
+    timeline_path = "fip-timeline.csv"
+    export_to_timeline(timeline_path, title)
 
     if not args.no_posting:
         # post to lastfm (all webradios)
         post_title_to_lastfm(title)
 
         # post to twitter/mastodon (main webradio)
-        if title["webradio"] == "FIP":
-            post_tweet(title)
+        # if title["webradio"] == "FIP":
+        #     post_tweet(title)
 
 
 def main():
@@ -498,6 +453,7 @@ def main():
     logger.debug("last_posted_songs contains : %s", last_posted_songs)
 
     new_titles = get_FIP_metadata()
+    logger.info(new_titles)
 
     # list of list
     for webradio_titles in new_titles:
@@ -513,7 +469,8 @@ def main():
             )
             last_posted_songs[current_webradio] = formatted_titles[0]
             post_title(
-                args, webradio_titles[0],
+                args,
+                webradio_titles[0],
             )
         # posting next song if last_posted_song exists in formatted_titles
         elif last_posted_songs[current_webradio] in formatted_titles:
@@ -528,7 +485,8 @@ def main():
                 )
                 last_posted_songs[current_webradio] = formatted_titles[index]
                 post_title(
-                    args, webradio_titles[index],
+                    args,
+                    webradio_titles[index],
                 )
         # if last_posted_song is too outdated, posting the current track playing.
         else:
@@ -540,7 +498,8 @@ def main():
             )
             last_posted_songs[current_webradio] = formatted_titles[0]
             post_title(
-                args, webradio_titles[0],
+                args,
+                webradio_titles[0],
             )
 
         # Exporting json each time
@@ -565,15 +524,12 @@ def parse_args():
         default=logging.INFO,
     )
     parser.add_argument(
-        "--no_headless",
-        help="Disable headless mode for the selenium browser.",
-        dest="no_headless",
-        action="store_false",
+        "--no_posting",
+        help="Disable posting.",
+        dest="no_posting",
+        action="store_true",
     )
-    parser.add_argument(
-        "--no_posting", help="Disable posting.", dest="no_posting", action="store_true",
-    )
-    parser.set_defaults(no_headless=True, no_posting=False)
+    parser.set_defaults(no_posting=False)
     args = parser.parse_args()
 
     logging.basicConfig(level=args.loglevel, format=format)
