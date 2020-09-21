@@ -15,6 +15,7 @@ You can find the mirrors on the following lastfm accounts :
 - [FIPnouveautes](https://last.fm/user/FIPnouveautes) for the nouveautés webradio.
 - [FIPelectro](https://last.fm/user/FIPelectro) for the electro webradio.
 - [FIPmetal](https://last.fm/user/FIPmetal) for the l'été metal webradio.
+- [FIPpop](https://last.fm/user/FIPpop) for the pop webradio.
 
 The following twitter accounts :
 

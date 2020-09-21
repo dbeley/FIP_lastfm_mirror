@@ -2,6 +2,7 @@
 Mirror the FIP webradios to several services.
 """
 import requests
+import re
 import json
 import logging
 import time
@@ -143,7 +144,10 @@ def parse_fip_item(webradio, item):
     )
 
     subtitle = item.find("span", {"class": "now-info-subtitle"}).text.replace("\t", "")
-    metadata["artist"] = subtitle
+    expr = re.compile(" \(\d{4}\)")
+    artist = re.sub(expr, "", subtitle)
+    logger.info("Artist cleaned with regex : from %s to %s.", subtitle, artist)
+    metadata["artist"] = artist
 
     details = item.find("div", {"class": "now-info-details"})
     try:
@@ -453,7 +457,7 @@ def main():
     logger.debug("last_posted_songs contains : %s", last_posted_songs)
 
     new_titles = get_FIP_metadata()
-    logger.info(new_titles)
+    logger.debug(new_titles)
 
     # list of list
     for webradio_titles in new_titles:
