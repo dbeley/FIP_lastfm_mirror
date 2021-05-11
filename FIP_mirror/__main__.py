@@ -146,7 +146,7 @@ def parse_fip_item(webradio, item):
     subtitle = item.find("span", {"class": "now-info-subtitle"}).text.replace("\t", "")
     expr = re.compile(" \(\d{4}\)")
     artist = re.sub(expr, "", subtitle)
-    logger.info("Artist cleaned with regex : from %s to %s.", subtitle, artist)
+    logger.debug("Artist cleaned with regex : from %s to %s.", subtitle, artist)
     metadata["artist"] = artist
 
     details = item.find("div", {"class": "now-info-details"})
@@ -182,10 +182,10 @@ def parse_fip_item(webradio, item):
             logger.error("potential_year : %s.", e)
             metadata["album"] = subtitle
 
-    metadata["cover_url"] = item.find("img")["src"].replace("\t", "")
+    # metadata["cover_url"] = item.find("img")["src"].replace("\t", "")
 
-    if not metadata["cover_url"].startswith("http"):
-        metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
+    # if not metadata["cover_url"].startswith("http"):
+    #     metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
 
     logger.debug(metadata)
     return metadata
