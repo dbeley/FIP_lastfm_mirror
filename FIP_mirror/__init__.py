@@ -5,6 +5,6 @@
 Mirror the FIP webradios to several services.
 """
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 name = "FIP_mirror"

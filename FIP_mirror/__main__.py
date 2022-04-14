@@ -10,17 +10,12 @@ import argparse
 import datetime
 import configparser
 import pylast
-from mastodon import Mastodon
 from pathlib import Path
 from bs4 import BeautifulSoup
-
-# import tweepy
-from .ydl_utils import get_youtube_url
 
 logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("tweepy").setLevel(logging.WARNING)
 logging.getLogger("chardet.charsetprober").setLevel(logging.WARNING)
 
 config = configparser.RawConfigParser()
@@ -39,27 +34,7 @@ ENABLED_WEBRADIOS = [
     "Nouveautés",
     "Metal",
 ]
-URLS_WEBRADIOS = [
-    "https://www.fip.fr/titres-diffuses",
-    "https://www.fip.fr/titres-diffuses?station=rock",
-    "https://www.fip.fr/titres-diffuses?station=jazz",
-    "https://www.fip.fr/titres-diffuses?station=groove",
-    "https://www.fip.fr/titres-diffuses?station=musiques-du-monde",
-    "https://www.fip.fr/titres-diffuses?station=tout-nouveau-tout-fip",
-    "https://www.fip.fr/titres-diffuses?station=reggae",
-    "https://www.fip.fr/titres-diffuses?station=electro",
-    "https://www.fip.fr/titres-diffuses?station=pop",
-    # "https://www.fip.fr/titres-diffuses?station=metal",
-    # "https://www.fip.fr",
-    # "https://www.fip.fr/rock/webradio",
-    # "https://www.fip.fr/jazz/webradio",
-    # "https://www.fip.fr/groove/webradio",
-    # "https://www.fip.fr/musiques-du-monde/webradio",
-    # "https://www.fip.fr/tout-nouveau-tout-fip/webradio",
-    # "https://www.fip.fr/reggae/webradio",
-    # "https://www.fip.fr/electro/webradio",
-    # "https://www.fip.fr/fip-metal/webradio",
-]
+URL_WEBRADIOS = "https://www.radiofrance.fr/api/v1.7/stations/fip/webradios/"
 
 
 def get_entry_from_dict(title, entry):
@@ -92,147 +67,51 @@ def lastfmconnect(webradio_name):
     return network
 
 
-# def twitterconnect():
-#    consumer_key = config["twitter"]["consumer_key"]
-#    secret_key = config["twitter"]["secret_key"]
-#    access_token = config["twitter"]["access_token"]
-#    access_token_secret = config["twitter"]["access_token_secret"]
-#
-#    auth = tweepy.OAuthHandler(consumer_key, secret_key)
-#    auth.set_access_token(access_token, access_token_secret)
-#    return tweepy.API(auth)
-
-
-def mastodonconnect():
-    if not Path("mastodon_clientcred.secret").is_file():
-        Mastodon.create_app(
-            "mastodon_bot_lastfm_cg",
-            api_base_url=config["mastodon"]["api_base_url"],
-            to_file="mastodon_clientcred.secret",
-        )
-
-    if not Path("mastodon_usercred.secret").is_file():
-        mastodon = Mastodon(
-            client_id="mastodon_clientcred.secret",
-            api_base_url=config["mastodon"]["api_base_url"],
-        )
-        mastodon.log_in(
-            config["mastodon"]["login_email"],
-            config["mastodon"]["password"],
-            to_file="mastodon_usercred.secret",
-        )
-
-    mastodon = Mastodon(
-        access_token="mastodon_usercred.secret",
-        api_base_url=config["mastodon"]["api_base_url"],
-    )
-    return mastodon
-
-
-def get_soup(url):
-    return BeautifulSoup(
-        requests.get(url, headers={"Cache-Control": "no-cache"}).content,
-        "lxml",
-    )
-
-
-def parse_fip_item(webradio, item):
-    metadata = {}
-    metadata["webradio"] = webradio
-    metadata["title"] = item.find("span", {"class": "now-info-title"}).text.replace(
-        "\t", ""
-    )
-
-    subtitle = item.find("span", {"class": "now-info-subtitle"}).text.replace("\t", "")
-    expr = re.compile(" \(\d{4}\)")
-    artist = re.sub(expr, "", subtitle)
-    logger.debug("Artist cleaned with regex : from %s to %s.", subtitle, artist)
-    metadata["artist"] = artist
-
-    details = item.find("div", {"class": "now-info-details"})
-    try:
-        details_label = [
-            x.text
-            for x in details.find_all("span", {"class": "now-info-details-label"})
-        ]
-        logger.debug("details_label : %s.", details_label)
-        details_value = [
-            x.text.strip()
-            for x in details.find_all("span", {"class": "now-info-details-value"})
-        ]
-        logger.debug("details_value : %s.", details_value)
-
-        for index, label in enumerate(details_label):
-            metadata[label.lower()] = details_value[index]
-    except Exception as e:
-        logger.error(e)
-
-    if "album" in metadata:
-        subtitle = metadata["album"].replace("\t", "")
-        try:
-            potential_year = (
-                subtitle.rsplit(" ", 1)[1].replace("(", "").replace(")", "")
-            )
-            if potential_year.isdigit():
-                metadata["year"] = potential_year
-                metadata["album"] = subtitle.rsplit(" ", 1)[0]
-            else:
-                metadata["album"] = subtitle
-        except Exception as e:
-            logger.error("potential_year : %s.", e)
-            metadata["album"] = subtitle
-
-    # metadata["cover_url"] = item.find("img")["src"].replace("\t", "")
-
-    # if not metadata["cover_url"].startswith("http"):
-    #     metadata["cover_url"] = "https://fip.fr" + metadata["cover_url"]
-
-    logger.debug(metadata)
-    return metadata
+def get_webradio_name_from_tag(webradio: str) -> str:
+    if webradio == "fip":
+        return "FIP"
+    elif webradio == "fip_rock":
+        return "Rock"
+    elif webradio == "fip_jazz":
+        return "Jazz"
+    elif webradio == "fip_groove":
+        return "Groove"
+    elif webradio == "fip_pop":
+        return "Pop"
+    elif webradio == "fip_electro":
+        return "Electro"
+    elif webradio == "fip_world":
+        return "Monde"
+    elif webradio == "fip_reggae":
+        return "Reggae"
+    elif webradio == "fip_nouveautes":
+        return "Nouveautés"
 
 
 def get_FIP_metadata():
     new_titles = []
 
-    for url in URLS_WEBRADIOS:
-        soup = get_soup(url)
+    content = requests.get(URL_WEBRADIOS).json()
+    for webradio_content in content:
+        webradio = get_webradio_name_from_tag(webradio_content["slug"])
 
-        # Taking the last word
-        # "En direct sur FIP" becomes FIP
-        # "En direct sur FIP Rock" becomes Rock
-        # "h1", {"class": "channel-header-title"}
-        webradio = soup.find("h1", {"class": "tracklist-content-title"}).text.split()[
-            -1
-        ]
-        list_dict_tracks = []
-
-        # First item : now playing
-        now_playing = soup.find("div", {"class": "playing-now"})
-        # If something is playing, otherwise just extract the old tracks
-        if now_playing.find("span", {"class": "now-info-title"}).text != "":
-            metadata = parse_fip_item(webradio, now_playing)
-            if (
-                # At least webradio, artist, title in dict.
-                {"webradio", "artist", "title"} <= set(metadata)
-                and metadata["webradio"] in ENABLED_WEBRADIOS
-                and metadata["title"] != ""
-                and metadata["artist"] != ""
-            ):
-                list_dict_tracks.append(metadata)
-
-        # Other items : broadcasted tracks
-        list_tracks = soup.find_all("li", {"class": "list-item timeline-item"})
-        for i in list_tracks:
-            metadata = parse_fip_item(webradio, i)
-            if (
-                # At least webradio, artist, title in dict.
-                {"webradio", "artist", "title"} <= set(metadata)
-                and metadata["webradio"] in ENABLED_WEBRADIOS
-                and metadata["title"] != ""
-                and metadata["artist"] != ""
-            ):
-                list_dict_tracks.append(metadata)
-        new_titles.append(list_dict_tracks)
+        album = None
+        label = None
+        if "release" in webradio_content["now"]["song"]:
+            album = webradio_content["now"]["song"]["release"]["title"]
+            label = webradio_content["now"]["song"]["release"]["label"]
+        new_titles.append(
+            [
+                {
+                    "webradio": webradio,
+                    "title": webradio_content["now"]["firstLine"],
+                    "artist": webradio_content["now"]["secondLine"],
+                    "year": webradio_content["now"]["song"]["year"],
+                    "album": album,
+                    "label": label,
+                }
+            ]
+        )
 
     logger.debug("New titles : %s", new_titles)
     return new_titles
@@ -271,166 +150,6 @@ def post_title_to_lastfm(title):
         )
 
 
-def tweet_image(api, filename, title, social_media):
-    if social_media == "twitter":
-        pic = api.media_upload(str(filename))
-        api.update_status(status=title, media_ids=[pic.media_id_string])
-    elif social_media == "mastodon":
-        id_media = api.media_post(str(filename), "image/png")
-        api.status_post(title, media_ids=[id_media])
-
-
-def get_fip_cover(title):
-    try:
-        return requests.get(title["cover_url"])
-    except Exception as e:
-        logger.error("Error : %s.", e)
-        return None
-
-
-def get_lastfm_cover(network, title):
-    logger.debug(f"Searching image for {title}.")
-    try:
-        picture_url = network.get_album(
-            title["artist"], title["album"]
-        ).get_cover_image()
-    except Exception as e:
-        logger.error("Error in lastfm cover extraction : %s.", e)
-        picture_url = None
-
-    if picture_url:
-        picture = requests.get(picture_url)
-    else:
-        picture = None
-    return picture
-
-
-def post_tweet(title):
-    # twitter_api = twitterconnect()
-    mastodon_api = mastodonconnect()
-    lastfm_api = lastfmconnect(title["webradio"])
-
-    # Search youtube video
-    youtube_url = get_youtube_url(title)
-    logger.debug(
-        "Youtube url for %s - %s : %s.",
-        title["artist"],
-        title["title"],
-        youtube_url,
-    )
-
-    # Four cases :
-    # 1) album present, cover found on fip
-    # 2) album present, cover found on lastfm
-    # 3) album present, cover not found on lastfm nor on fip
-    # 4) no album
-    # also year
-    additional_infos = ""
-    if "album" in title:
-        if "year" in title:
-            additional_infos += f" ({title['album']} - {title['year']})"
-        else:
-            additional_infos += f" ({title['album']})"
-    if youtube_url:
-        additional_infos += f" {youtube_url}"
-
-    tweet_text = (
-        f"{title['artist']} - {title['title']}{additional_infos} #fipradio #nowplaying"
-    )
-    # tweet_text = f"#fipradio #nowplaying {title['artist']} - {title['title']}{additional_infos}"
-    if "album" in title:
-        logger.info(
-            "Mastodon : Posting %s - %s (%s). Tweet text : %s.",
-            title["artist"],
-            title["title"],
-            title["album"],
-            tweet_text,
-        )
-        # Cover is not the placeholder on fip
-        if "cover_url" in title and "placeholder" not in title["cover_url"]:
-            cover = get_fip_cover(title)
-            # Cover successfully downloaded
-            if cover and cover.status_code == 200:
-                with open("cover.jpg", "wb") as f:
-                    f.write(cover.content)
-                # try:
-                #     tweet_image(
-                #         twitter_api, "cover.jpg", tweet_text, "twitter"
-                #     )
-                # except Exception as e:
-                #     logger.error("Error posting tweet to Twitter : %s.", e)
-                try:
-                    tweet_image(mastodon_api, "cover.jpg", tweet_text, "mastodon")
-                except Exception as e:
-                    logger.error("Error posting tweet to Mastodon : %s.", e)
-            # Problem with the cover download
-            else:
-                # twitter_api.update_status(status=tweet_text)
-                mastodon_api.status_post(tweet_text)
-        # Cover is the placeholder, searching on lastfm
-        elif "cover_url" in title and "placeholder" in title["cover_url"]:
-            cover = get_lastfm_cover(lastfm_api, title)
-            # Cover found on lastfm and successfully downloaded
-            if cover and cover.status_code == 200:
-                with open("cover.png", "wb") as f:
-                    f.write(cover.content)
-                # try:
-                #     tweet_image(
-                #         twitter_api, "cover.png", tweet_text, "twitter"
-                #     )
-                # except Exception as e:
-                #     logger.error("Error posting tweet to Twitter : %s.", e)
-                try:
-                    tweet_image(mastodon_api, "cover.png", tweet_text, "mastodon")
-                except Exception as e:
-                    logger.error("Error posting tweet to Mastodon : %s.", e)
-            # Cover not found on lastfm
-            else:
-                # try:
-                #     twitter_api.update_status(status=tweet_text)
-                # except Exception as e:
-                #     logger.error("Error posting tweet to Twitter : %s.", e)
-                try:
-                    mastodon_api.status_post(tweet_text)
-                except Exception as e:
-                    logger.error("Error posting tweet to Mastodon : %s.", e)
-        else:
-            # try:
-            #     twitter_api.update_status(status=tweet_text)
-            # except Exception as e:
-            #     logger.error("Error posting tweet to Twitter : %s.", e)
-            try:
-                mastodon_api.status_post(tweet_text)
-            except Exception as e:
-                logger.error("Error posting tweet to Mastodon : %s.", e)
-    else:
-        # try:
-        #     twitter_api.update_status(status=tweet_text)
-        # except Exception as e:
-        #     logger.error("Error posting tweet to Twitter : %s.", e)
-        try:
-            mastodon_api.status_post(tweet_text)
-        except Exception as e:
-            logger.error("Error posting tweet to Mastodon : %s.", e)
-        logger.info(
-            "Mastodon : Posting %s - %s. Tweet text : %s.",
-            title["artist"],
-            title["title"],
-            tweet_text,
-        )
-
-
-class MyLogger(object):  # pragma: no cover
-    def debug(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def error(self, msg):
-        print(msg)
-
-
 def post_title(args, title):
     timeline_path = "fip-timeline.csv"
     export_to_timeline(timeline_path, title)
@@ -438,10 +157,6 @@ def post_title(args, title):
     if not args.no_posting:
         # post to lastfm (all webradios)
         post_title_to_lastfm(title)
-
-        # post to twitter/mastodon (main webradio)
-        # if title["webradio"] == "FIP":
-        #     post_tweet(title)
 
 
 def main():
