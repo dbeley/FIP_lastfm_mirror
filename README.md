@@ -1,6 +1,6 @@
 # FIP_mirror
 
-Scripts mirroring the FIP webradios on lastfm, twitter and mastodon.
+Scripts mirroring the FIP webradios on lastfm.
 
 Since the FIP redesign, the http://www.fipradio.fr/livemeta containing the metadata in xml format isn't available anymore.
 
@@ -16,14 +16,6 @@ You can find the mirrors on the following lastfm accounts :
 - [FIPelectro](https://last.fm/user/FIPelectro) for the electro webradio.
 - [FIPmetal](https://last.fm/user/FIPmetal) for the l'été metal webradio.
 - [FIPpop](https://last.fm/user/FIPpop) for the pop webradio.
-
-The following twitter accounts :
-
-- [@fipdirect](https://twitter.com/fipdirect) for the main channel.
-
-The following mastodon accounts :
-
-- [@fipdirect@mamot.fr](https://mamot.fr/@fipdirect) for the main channel.
 
 ## Installation
 
