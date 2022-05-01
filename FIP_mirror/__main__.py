@@ -97,16 +97,19 @@ def get_FIP_metadata():
 
         album = None
         label = None
-        if "release" in webradio_content["now"]["song"]:
-            album = webradio_content["now"]["song"]["release"]["title"]
-            label = webradio_content["now"]["song"]["release"]["label"]
+        year = None
+        if "song" in webradio_content["now"]:
+            year = webradio_content["now"]["song"].get("year")
+            if "release" in webradio_content["now"]["song"]:
+                album = webradio_content["now"]["song"]["release"].get("title")
+                label = webradio_content["now"]["song"]["release"].get("label")
         new_titles.append(
             [
                 {
                     "webradio": webradio,
                     "title": webradio_content["now"]["firstLine"],
                     "artist": webradio_content["now"]["secondLine"],
-                    "year": webradio_content["now"]["song"]["year"],
+                    "year": year,
                     "album": album,
                     "label": label,
                 }
