@@ -17,6 +17,7 @@ logger = logging.getLogger()
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("chardet.charsetprober").setLevel(logging.WARNING)
+logging.getLogger("pylast").setLevel(logging.WARNING)
 
 config = configparser.RawConfigParser()
 config.read("config.ini")
