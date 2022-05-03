@@ -104,18 +104,20 @@ def get_FIP_metadata():
             if "release" in webradio_content["now"]["song"]:
                 album = webradio_content["now"]["song"]["release"].get("title")
                 label = webradio_content["now"]["song"]["release"].get("label")
-        new_titles.append(
-            [
-                {
-                    "webradio": webradio,
-                    "title": webradio_content["now"]["firstLine"],
-                    "artist": webradio_content["now"]["secondLine"],
-                    "year": year,
-                    "album": album,
-                    "label": label,
-                }
-            ]
-        )
+        title = webradio_content["now"]["firstLine"]
+        if title.lower() != "le direct":
+            new_titles.append(
+                [
+                    {
+                        "webradio": webradio,
+                        "title": title,
+                        "artist": webradio_content["now"]["secondLine"],
+                        "year": year,
+                        "album": album,
+                        "label": label,
+                    }
+                ]
+            )
 
     logger.debug("New titles : %s", new_titles)
     return new_titles
