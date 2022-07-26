@@ -87,6 +87,12 @@ def get_webradio_name_from_tag(webradio: str) -> str:
         return "Reggae"
     elif webradio == "fip_nouveautes":
         return "Nouveautés"
+    elif webradio == "fip_metal":
+        return "Metal"
+    elif webradio == "fip_hiphop":
+        return "Hip-Hop"
+    else:
+        raise ValueError(f"webradio {webradio} not supported.")
 
 
 def get_FIP_metadata():
@@ -105,7 +111,7 @@ def get_FIP_metadata():
                 album = webradio_content["now"]["song"]["release"].get("title")
                 label = webradio_content["now"]["song"]["release"].get("label")
         title = webradio_content["now"]["firstLine"]
-        if title.lower() != "le direct":
+        if title.lower() != "le direct" and webradio in ENABLED_WEBRADIOS:
             new_titles.append(
                 [
                     {
